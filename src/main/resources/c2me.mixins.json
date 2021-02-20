@@ -20,6 +20,7 @@
     "threading.worldgen.MixinServerWorld",
     "threading.worldgen.MixinStructureManager",
     "threading.worldgen.MixinThreadedAnvilChunkStorage",
+    "threading.worldgen.fixes.MixinWeighedBlockStateProvider",
     "util.log4j2shutdownhookisnomore.MixinMain",
     "util.log4j2shutdownhookisnomore.MixinMinecraftDedicatedServer"
   ],

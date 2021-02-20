@@ -27,9 +27,8 @@ public class ChunkStatusUtils {
             case "liquid_carvers":
             case "spawn":
             case "heightmaps":
-                return ChunkStatusThreadingType.PARALLELIZED;
             case "features":
-                return ChunkStatusThreadingType.SINGLE_THREADED;
+                return ChunkStatusThreadingType.PARALLELIZED;
             default:
                 return ChunkStatusThreadingType.AS_IS;
         }
