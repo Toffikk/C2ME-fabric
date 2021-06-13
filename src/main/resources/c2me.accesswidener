@@ -1,30 +1,30 @@
 accessWidener v1 named
 
-accessible    class    net/minecraft/world/chunk/ChunkStatus$SimpleGenerationTask
-accessible    class    net/minecraft/world/chunk/ChunkStatus$LoadTask
-accessible    class    net/minecraft/world/chunk/ChunkStatus$GenerationTask
-accessible    class    net/minecraft/world/storage/StorageIoWorker$Result
-accessible    class    net/minecraft/server/world/ServerChunkManager$MainThreadExecutor
+accessible    class    net/minecraft/world/level/chunk/ChunkStatus$SimpleGenerationTask
+accessible    class    net/minecraft/world/level/chunk/ChunkStatus$LoadingTask
+accessible    class    net/minecraft/world/level/chunk/ChunkStatus$GenerationTask
+accessible    class    net/minecraft/world/level/chunk/storage/IOWorker$PendingStore
+accessible    class    net/minecraft/server/level/ServerChunkCache$MainThreadExecutor
 
-accessible    method    net/minecraft/world/storage/RegionBasedStorage    <init>    (Ljava/io/File;Z)V
-accessible    method    net/minecraft/world/storage/RegionBasedStorage    getRegionFile    (Lnet/minecraft/util/math/ChunkPos;)Lnet/minecraft/world/storage/RegionFile;
-accessible    method    net/minecraft/world/storage/RegionBasedStorage    write    (Lnet/minecraft/util/math/ChunkPos;Lnet/minecraft/nbt/CompoundTag;)V
-accessible    method    net/minecraft/world/gen/chunk/ChunkGeneratorSettings    hasDeepslate    ()Z
-accessible    method    net/minecraft/util/collection/WeightedList    <init>    (Ljava/util/List;)V
-accessible    method    net/minecraft/util/collection/WeightedList$Entry    setShuffledOrder    (F)V
-accessible    method    net/minecraft/util/collection/WeightedList$Entry    getShuffledOrder    ()D
-accessible    method    net/minecraft/server/world/ServerChunkManager    tick    ()Z
-accessible    method    net/minecraft/server/world/ServerChunkManager$MainThreadExecutor    runTask    ()Z
-accessible    method    net/minecraft/util/thread/ThreadExecutor    runTask    ()Z
+accessible    method    net/minecraft/world/level/chunk/storage/RegionFileStorage    <init>    (Ljava/io/File;Z)V
+accessible    method    net/minecraft/world/level/chunk/storage/RegionFileStorage    getRegionFile    (Lnet/minecraft/world/level/ChunkPos;)Lnet/minecraft/world/level/chunk/storage/RegionFile;
+accessible    method    net/minecraft/world/level/chunk/storage/RegionFileStorage    write    (Lnet/minecraft/world/level/ChunkPos;Lnet/minecraft/nbt/CompoundTag;)V
+accessible    method    net/minecraft/world/level/levelgen/NoiseGeneratorSettings    isDeepslateEnabled    ()Z
+accessible    method    net/minecraft/world/entity/ai/behavior/ShufflingList    <init>    (Ljava/util/List;)V
+accessible    method    net/minecraft/util/collection/WeightedList$WeightedEntry    setRandom    (F)V
+accessible    method    net/minecraft/util/collection/WeightedList$WeightedEntry    getRandWeight    ()D
+accessible    method    net/minecraft/server/level/ServerChunkCache    runDistanceManagerUpdates    ()Z
+accessible    method    net/minecraft/server/level/ServerChunkCache$MainThreadExecutor    pollTask    ()Z
+accessible    method    net/minecraft/util/thread/BlockableEventLoop    pollTask    ()Z
 accessible    method    net/minecraft/server/world/SimpleTickScheduler    <init>    (Ljava/util/function/Function;Ljava/util/List;)V
 
-accessible    field    net/minecraft/world/storage/StorageIoWorker$Result    nbt    Lnet/minecraft/nbt/NbtCompound;
-accessible    field    net/minecraft/world/storage/StorageIoWorker$Result    future    Ljava/util/concurrent/CompletableFuture;
-accessible    field    net/minecraft/world/storage/VersionedChunkStorage    worker    Lnet/minecraft/world/storage/StorageIoWorker;
-accessible    field    net/minecraft/world/storage/SerializingRegionBasedStorage    worker    Lnet/minecraft/world/storage/StorageIoWorker;
-accessible    field    net/minecraft/util/collection/WeightedList    entries    Ljava/util/List;
-accessible    field    net/minecraft/server/world/ServerTickScheduler    world    Lnet/minecraft/server/world/ServerWorld;
-accessible    field    net/minecraft/server/world/ServerWorld    serverChunkManager    Lnet/minecraft/server/world/ServerChunkManager;
-accessible    field    net/minecraft/server/world/ServerChunkManager    mainThreadExecutor    Lnet/minecraft/server/world/ServerChunkManager$MainThreadExecutor;
-accessible    field    net/minecraft/world/biome/layer/util/CachingLayerSampler    operator    Lnet/minecraft/world/biome/layer/util/LayerOperator;
+accessible    field    net/minecraft/world/level/chunk/storage/IOWorker$PendingStore    nbt    Lnet/minecraft/nbt/NbtCompound;
+accessible    field    net/minecraft/world/level/chunk/storage/IOWorker$PendingStore    future    Ljava/util/concurrent/CompletableFuture;
+accessible    field    net/minecraft/world/level/chunk/storage/ChunkStorage    worker    Lnet/minecraft/world/level/chunk/storage/IOWorker;
+accessible    field    net/minecraft/world/level/chunk/storage/SectionStorage    worker    Lnet/minecraft/world/level/chunk/storage/IOWorker;
+accessible    field    net/minecraft/world/entity/ai/behavior/ShufflingList    entries    Ljava/util/List;
+accessible    field    net/minecraft/world/level/ServerTickList    world    Lnet/minecraft/server/level/ServerLevel;
+accessible    field    net/minecraft/server/level/ServerLevel    serverChunkCache    Lnet/minecraft/server/level/ServerChunkCache;
+accessible    field    net/minecraft/server/level/ServerChunkCache    mainThreadExecutor    Lnet/minecraft/server/level/ServerChunkCache$MainThreadExecutor;
+accessible    field    net/minecraft/world/level/newbiome/area/LazyArea    operator    Lnet/minecraft/world/level/newbiome/layer/traits/PixelTransformer;
 
