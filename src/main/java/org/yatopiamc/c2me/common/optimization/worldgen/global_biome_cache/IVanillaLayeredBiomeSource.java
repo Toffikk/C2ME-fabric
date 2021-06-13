@@ -1,10 +1,10 @@
 package org.yatopiamc.c2me.common.optimization.worldgen.global_biome_cache;
 
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.HeightLimitView;
-import net.minecraft.world.biome.source.BiomeArray;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.LevelHeightAccessor;
+import net.minecraft.world.level.chunk.ChunkBiomeContainer;
 
 public interface IVanillaLayeredBiomeSource {
 
-    BiomeArray preloadBiomes(HeightLimitView view, ChunkPos pos, BiomeArray def);
+    ChunkBiomeContainer preloadBiomes(LevelHeightAccessor view, ChunkPos pos, ChunkBiomeContainer def);
 }

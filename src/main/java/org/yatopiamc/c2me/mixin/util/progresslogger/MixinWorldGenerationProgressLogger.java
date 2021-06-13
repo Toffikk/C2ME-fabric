@@ -1,9 +1,9 @@
 package org.yatopiamc.c2me.mixin.util.progresslogger;
 
-import net.minecraft.server.WorldGenerationProgressLogger;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.chunk.ChunkStatus;
+import net.minecraft.server.level.progress.LoggerChunkProgressListener;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.ChunkStatus;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(WorldGenerationProgressLogger.class)
+@Mixin(LoggerChunkProgressListener.class)
 public class MixinWorldGenerationProgressLogger {
 
     @Shadow
@@ -33,7 +33,7 @@ public class MixinWorldGenerationProgressLogger {
         this.radius = radius;
         chunkStatuses = 0;
         chunkStatusTransitions = 0;
-        while ((status = status.getPrevious()) != ChunkStatus.EMPTY)
+        while ((status = status.getParent()) != ChunkStatus.EMPTY)
             chunkStatuses++;
         chunkStatuses++;
     }
@@ -45,7 +45,7 @@ public class MixinWorldGenerationProgressLogger {
 
     @Inject(method = "setChunkStatus", at = @At("HEAD"))
     private void onSetChunkStatus(ChunkPos pos, ChunkStatus status, CallbackInfo ci) {
-        if (status != null && (this.spawnPos == null || pos.getChebyshevDistance(spawnPos) <= radius)) this.chunkStatusTransitions++;
+        if (status != null && (this.spawnPos == null || pos.getChessboardDistance(spawnPos) <= radius)) this.chunkStatusTransitions++;
     }
 
     /**
@@ -55,7 +55,7 @@ public class MixinWorldGenerationProgressLogger {
     @Overwrite
     public int getProgressPercentage() {
         // LOGGER.info("{} / {}", chunkStatusTransitions, totalCount * chunkStatuses);
-        return MathHelper.floor((float) this.chunkStatusTransitions * 100.0F / (float) (this.totalCount * chunkStatuses));
+        return Mth.floor((float) this.chunkStatusTransitions * 100.0F / (float) (this.totalCount * chunkStatuses));
     }
 
 }

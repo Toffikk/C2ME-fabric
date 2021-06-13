@@ -1,12 +1,12 @@
 package org.yatopiamc.c2me.mixin.util.math;
 
-import net.minecraft.world.biome.source.BiomeArray;
+import net.minecraft.world.level.chunk.ChunkBiomeContainer;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.yatopiamc.c2me.common.util.IBiomeArray;
 
-@Mixin(BiomeArray.class)
+@Mixin(ChunkBiomeContainer.class)
 public class MixinBiomeArray implements IBiomeArray {
 
 

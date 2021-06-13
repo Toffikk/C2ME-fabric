@@ -1,7 +1,7 @@
 package org.yatopiamc.c2me.mixin.chunkscheduling.mid_tick_chunk_tasks;
 
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.World;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.yatopiamc.c2me.common.chunkscheduling.ServerMidTickTask;
 
-@Mixin(World.class)
+@Mixin(Level.class)
 public abstract class MixinWorld {
 
     @Shadow @Nullable public abstract MinecraftServer getServer();

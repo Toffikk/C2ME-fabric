@@ -1,13 +1,13 @@
 package org.yatopiamc.c2me.mixin.util.log4j2shutdownhookisnomore;
 
-import net.minecraft.server.dedicated.MinecraftDedicatedServer;
+import net.minecraft.server.dedicated.DedicatedServer;
 import org.apache.logging.log4j.LogManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(MinecraftDedicatedServer.class)
+@Mixin(DedicatedServer.class)
 public class MixinMinecraftDedicatedServer {
 
     @Inject(method = "exit", at = @At("RETURN"))

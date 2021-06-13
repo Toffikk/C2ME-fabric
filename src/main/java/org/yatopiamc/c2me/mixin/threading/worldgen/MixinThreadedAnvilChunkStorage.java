@@ -1,12 +1,6 @@
 package org.yatopiamc.c2me.mixin.threading.worldgen;
 
 import com.mojang.datafixers.util.Either;
-import net.minecraft.server.world.ChunkHolder;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.world.ThreadedAnvilChunkStorage;
-import net.minecraft.util.thread.ThreadExecutor;
-import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.chunk.ChunkStatus;
 import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,15 +15,21 @@ import org.yatopiamc.c2me.common.threading.GlobalExecutors;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
+import net.minecraft.server.level.ChunkHolder;
+import net.minecraft.server.level.ChunkMap;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.thread.BlockableEventLoop;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkStatus;
 
-@Mixin(ThreadedAnvilChunkStorage.class)
+@Mixin(ChunkMap.class)
 public class MixinThreadedAnvilChunkStorage {
 
-    @Shadow @Final private ServerWorld world;
-    @Shadow @Final private ThreadExecutor<Runnable> mainThreadExecutor;
+    @Shadow @Final private ServerLevel world;
+    @Shadow @Final private BlockableEventLoop<Runnable> mainThreadExecutor;
 
     private final Executor mainInvokingExecutor = runnable -> {
-        if (this.world.getServer().isOnThread()) {
+        if (this.world.getServer().isSameThread()) {
             runnable.run();
         } else {
             this.mainThreadExecutor.execute(runnable);
@@ -39,7 +39,7 @@ public class MixinThreadedAnvilChunkStorage {
     private final ThreadLocal<ChunkStatus> capturedRequiredStatus = new ThreadLocal<>();
 
     @Inject(method = "upgradeChunk", at = @At("HEAD"))
-    private void onUpgradeChunk(ChunkHolder holder, ChunkStatus requiredStatus, CallbackInfoReturnable<CompletableFuture<Either<Chunk, ChunkHolder.Unloaded>>> cir) {
+    private void onUpgradeChunk(ChunkHolder holder, ChunkStatus requiredStatus, CallbackInfoReturnable<CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>>> cir) {
         capturedRequiredStatus.set(requiredStatus);
     }
 
@@ -59,8 +59,8 @@ public class MixinThreadedAnvilChunkStorage {
         final ChunkStatus capturedStatus = capturedRequiredStatus.get();
         capturedRequiredStatus.remove();
         if (capturedStatus != null) {
-            final Chunk currentChunk = chunkHolder.getCurrentChunk();
-            if (currentChunk != null && currentChunk.getStatus().isAtLeast(capturedStatus)) {
+            final ChunkAccess currentChunk = chunkHolder.getLastAvailable();
+            if (currentChunk != null && currentChunk.getStatus().isOrAfter(capturedStatus)) {
                 this.mainInvokingExecutor.execute(runnable);
                 return;
             }

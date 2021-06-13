@@ -1,10 +1,6 @@
 package org.yatopiamc.c2me.mixin.chunkscheduling.fix_unload;
 
 import it.unimi.dsi.fastutil.longs.LongSet;
-import net.minecraft.server.world.ChunkHolder;
-import net.minecraft.server.world.ThreadedAnvilChunkStorage;
-import net.minecraft.util.thread.ThreadExecutor;
-import net.minecraft.world.poi.PointOfInterestStorage;
 import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,11 +15,15 @@ import org.yatopiamc.c2me.common.structs.LongHashSet;
 import org.yatopiamc.c2me.common.util.ShouldKeepTickingUtils;
 
 import java.util.function.BooleanSupplier;
+import net.minecraft.server.level.ChunkHolder;
+import net.minecraft.server.level.ChunkMap;
+import net.minecraft.util.thread.BlockableEventLoop;
+import net.minecraft.world.entity.ai.village.poi.PoiManager;
 
-@Mixin(ThreadedAnvilChunkStorage.class)
+@Mixin(ChunkMap.class)
 public abstract class MixinThreadedAnvilChunkStorage {
 
-    @Shadow @Final private ThreadExecutor<Runnable> mainThreadExecutor;
+    @Shadow @Final private BlockableEventLoop<Runnable> mainThreadExecutor;
 
     @Shadow protected abstract void unloadChunks(BooleanSupplier shouldKeepTicking);
 
@@ -42,12 +42,12 @@ public abstract class MixinThreadedAnvilChunkStorage {
     }
 
     @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/poi/PointOfInterestStorage;tick(Ljava/util/function/BooleanSupplier;)V"))
-    private void redirectTickPointOfInterestStorageTick(PointOfInterestStorage pointOfInterestStorage, BooleanSupplier shouldKeepTicking) {
+    private void redirectTickPointOfInterestStorageTick(PoiManager pointOfInterestStorage, BooleanSupplier shouldKeepTicking) {
         pointOfInterestStorage.tick(ShouldKeepTickingUtils.minimumTicks(shouldKeepTicking, 32));
     }
 
     @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/world/ThreadedAnvilChunkStorage;unloadChunks(Ljava/util/function/BooleanSupplier;)V"))
-    private void redirectTickUnloadChunks(ThreadedAnvilChunkStorage threadedAnvilChunkStorage, BooleanSupplier shouldKeepTicking) {
+    private void redirectTickUnloadChunks(ChunkMap threadedAnvilChunkStorage, BooleanSupplier shouldKeepTicking) {
         this.unloadChunks(ShouldKeepTickingUtils.minimumTicks(shouldKeepTicking, 32));
     }
 

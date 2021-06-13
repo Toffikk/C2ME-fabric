@@ -1,22 +1,6 @@
 package org.yatopiamc.c2me.common.threading.chunkio;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.minecraft.block.Block;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.server.world.ServerTickScheduler;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.world.SimpleTickScheduler;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.ChunkSectionPos;
-import net.minecraft.util.registry.Registry;
-import net.minecraft.world.LightType;
-import net.minecraft.world.TickScheduler;
-import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.chunk.ChunkNibbleArray;
-import net.minecraft.world.chunk.light.ChunkLightingView;
-import net.minecraft.world.chunk.light.LightingProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -29,6 +13,19 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.TickList;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.DataLayer;
+import net.minecraft.world.level.lighting.LayerLightEventListener;
+import net.minecraft.world.level.lighting.LevelLightEngine;
+import net.minecraft.world.level.material.Fluid;
 
 public class AsyncSerializationManager {
 
@@ -58,14 +55,14 @@ public class AsyncSerializationManager {
 
     public static class Scope {
         public final ChunkPos pos;
-        public final Map<LightType, ChunkLightingView> lighting;
-        public final TickScheduler<Block> blockTickScheduler;
-        public final TickScheduler<Fluid> fluidTickScheduler;
+        public final Map<LightLayer, LayerLightEventListener> lighting;
+        public final TickList<Block> blockTickScheduler;
+        public final TickList<Fluid> fluidTickScheduler;
         public final Map<BlockPos, BlockEntity> blockEntities;
         private final AtomicBoolean isOpen = new AtomicBoolean(false);
 
         @SuppressWarnings("unchecked")
-        public Scope(Chunk chunk, ServerWorld world) {
+        public Scope(ChunkAccess chunk, ServerLevel world) {
             this.pos = chunk.getPos();
             this.lighting = Arrays.stream(LightType.values()).map(type -> new CachedLightingView(world.getLightingProvider(), chunk.getPos(), type)).collect(Collectors.toMap(CachedLightingView::getLightType, Function.identity()));
             final TickScheduler<Block> blockTickScheduler = chunk.getBlockTickScheduler();
@@ -89,23 +86,23 @@ public class AsyncSerializationManager {
             if (!isOpen.compareAndSet(false, true)) throw new IllegalStateException("Cannot use scope twice");
         }
 
-        private static final class CachedLightingView implements ChunkLightingView {
+        private static final class CachedLightingView implements LayerLightEventListener {
 
-            private static final ChunkNibbleArray EMPTY = new ChunkNibbleArray();
+            private static final DataLayer EMPTY = new DataLayer();
 
-            private final LightType lightType;
-            private final Map<ChunkSectionPos, ChunkNibbleArray> cachedData = new Object2ObjectOpenHashMap<>();
+            private final LightLayer lightType;
+            private final Map<SectionPos, DataLayer> cachedData = new Object2ObjectOpenHashMap<>();
 
-            CachedLightingView(LightingProvider provider, ChunkPos pos, LightType type) {
+            CachedLightingView(LevelLightEngine provider, ChunkPos pos, LightLayer type) {
                 this.lightType = type;
-                for (int i = provider.getBottomY(); i < provider.getTopY(); i++) {
-                    final ChunkSectionPos sectionPos = ChunkSectionPos.from(pos, i);
-                    ChunkNibbleArray lighting = provider.get(type).getLightSection(sectionPos);
+                for (int i = provider.getMinLightSection(); i < provider.getMaxLightSection(); i++) {
+                    final SectionPos sectionPos = SectionPos.of(pos, i);
+                    DataLayer lighting = provider.getLayerListener(type).getDataLayerData(sectionPos);
                     cachedData.put(sectionPos, lighting != null ? lighting.copy() : null);
                 }
             }
 
-            public LightType getLightType() {
+            public LightLayer getLightType() {
                 return this.lightType;
             }
 
@@ -115,38 +112,38 @@ public class AsyncSerializationManager {
             }
 
             @Override
-            public void addLightSource(BlockPos blockPos, int i) {
+            public void onBlockEmissionIncrease(BlockPos blockPos, int i) {
                 throw new UnsupportedOperationException();
             }
 
             @Override
-            public boolean hasUpdates() {
+            public boolean hasLightWork() {
                 throw new UnsupportedOperationException();
             }
 
             @Override
-            public int doLightUpdates(int i, boolean bl, boolean bl2) {
+            public int runUpdates(int i, boolean bl, boolean bl2) {
                 throw new UnsupportedOperationException();
             }
 
             @Override
-            public void setSectionStatus(ChunkSectionPos pos, boolean notReady) {
+            public void updateSectionStatus(SectionPos pos, boolean notReady) {
                 throw new UnsupportedOperationException();
             }
 
             @Override
-            public void setColumnEnabled(ChunkPos chunkPos, boolean bl) {
+            public void enableLightSources(ChunkPos chunkPos, boolean bl) {
                 throw new UnsupportedOperationException();
             }
 
             @NotNull
             @Override
-            public ChunkNibbleArray getLightSection(ChunkSectionPos pos) {
+            public DataLayer getDataLayerData(SectionPos pos) {
                 return cachedData.getOrDefault(pos, EMPTY);
             }
 
             @Override
-            public int getLightLevel(BlockPos pos) {
+            public int getLightValue(BlockPos pos) {
                 throw new UnsupportedOperationException();
             }
         }

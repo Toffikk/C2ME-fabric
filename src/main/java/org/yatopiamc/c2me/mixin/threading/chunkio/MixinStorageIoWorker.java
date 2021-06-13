@@ -1,12 +1,6 @@
 package org.yatopiamc.c2me.mixin.threading.chunkio;
 
 import com.mojang.datafixers.util.Either;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.thread.TaskExecutor;
-import net.minecraft.util.thread.TaskQueue;
-import net.minecraft.world.storage.RegionBasedStorage;
-import net.minecraft.world.storage.StorageIoWorker;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,26 +22,32 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.thread.ProcessorMailbox;
+import net.minecraft.util.thread.StrictQueue;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.storage.IOWorker;
+import net.minecraft.world.level.chunk.storage.RegionFileStorage;
 
-@Mixin(StorageIoWorker.class)
+@Mixin(IOWorker.class)
 public abstract class MixinStorageIoWorker implements IAsyncChunkStorage {
 
     @Mutable
-    @Shadow @Final private RegionBasedStorage storage;
+    @Shadow @Final private RegionFileStorage storage;
 
     @Mutable
-    @Shadow @Final private Map<ChunkPos, StorageIoWorker.Result> results;
+    @Shadow @Final private Map<ChunkPos, IOWorker.PendingStore> results;
 
     @Shadow @Final private AtomicBoolean closed;
 
     @Mutable
-    @Shadow @Final private TaskExecutor<TaskQueue.PrioritizedTask> executor;
+    @Shadow @Final private ProcessorMailbox<StrictQueue.IntRunnable> executor;
 
     @Shadow @Final private static Logger LOGGER;
 
     @Shadow protected abstract <T> CompletableFuture<T> run(Supplier<Either<T, Exception>> supplier);
 
-    @Shadow protected abstract CompletableFuture<NbtCompound> readChunkData(ChunkPos pos);
+    @Shadow protected abstract CompletableFuture<CompoundTag> readChunkData(ChunkPos pos);
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void onPostInit(CallbackInfo info) {
@@ -75,7 +75,7 @@ public abstract class MixinStorageIoWorker implements IAsyncChunkStorage {
     }
 
     @Override
-    public CompletableFuture<NbtCompound> getNbtAtAsync(ChunkPos pos) {
+    public CompletableFuture<CompoundTag> getNbtAtAsync(ChunkPos pos) {
         return readChunkData(pos);
     }
 }

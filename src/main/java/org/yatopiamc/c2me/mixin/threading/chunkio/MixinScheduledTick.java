@@ -1,6 +1,5 @@
 package org.yatopiamc.c2me.mixin.threading.chunkio;
 
-import net.minecraft.world.ScheduledTick;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
@@ -10,8 +9,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.atomic.AtomicLong;
+import net.minecraft.world.level.TickNextTickData;
 
-@Mixin(ScheduledTick.class)
+@Mixin(TickNextTickData.class)
 public class MixinScheduledTick {
 
     @Mutable

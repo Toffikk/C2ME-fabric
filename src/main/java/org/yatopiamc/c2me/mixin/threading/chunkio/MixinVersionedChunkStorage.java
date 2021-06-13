@@ -3,15 +3,14 @@ package org.yatopiamc.c2me.mixin.threading.chunkio;
 import com.ibm.asyncutil.locks.AsyncLock;
 import com.mojang.datafixers.DataFixer;
 import net.minecraft.SharedConstants;
-import net.minecraft.datafixer.DataFixTypes;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtHelper;
-import net.minecraft.util.registry.RegistryKey;
-import net.minecraft.world.FeatureUpdater;
-import net.minecraft.world.PersistentStateManager;
-import net.minecraft.world.World;
-import net.minecraft.world.storage.StorageIoWorker;
-import net.minecraft.world.storage.VersionedChunkStorage;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.datafix.DataFixTypes;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.storage.ChunkStorage;
+import net.minecraft.world.level.levelgen.structure.LegacyStructureDataHandler;
+import net.minecraft.world.level.storage.DimensionDataStorage;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,12 +25,12 @@ import org.yatopiamc.c2me.common.threading.chunkio.C2MECachedRegionStorage;
 import java.io.File;
 import java.util.function.Supplier;
 
-@Mixin(VersionedChunkStorage.class)
+@Mixin(ChunkStorage.class)
 public abstract class MixinVersionedChunkStorage {
 
     @Shadow @Final protected DataFixer dataFixer;
 
-    @Shadow @Nullable private FeatureUpdater featureUpdater;
+    @Shadow @Nullable private LegacyStructureDataHandler featureUpdater;
 
     private AsyncLock featureUpdaterLock = AsyncLock.createFair();
 
@@ -45,34 +44,34 @@ public abstract class MixinVersionedChunkStorage {
      * @reason async loading
      */
     @Overwrite
-    public NbtCompound updateChunkNbt(RegistryKey<World> registryKey, Supplier<PersistentStateManager> persistentStateManagerFactory, NbtCompound tag) {
+    public CompoundTag updateChunkNbt(ResourceKey<Level> registryKey, Supplier<DimensionDataStorage> persistentStateManagerFactory, CompoundTag tag) {
         // TODO [VanillaCopy] - check when updating minecraft version
-        int i = VersionedChunkStorage.getDataVersion(tag);
+        int i = ChunkStorage.getVersion(tag);
         if (i < 1493) {
             try (final AsyncLock.LockToken ignored = featureUpdaterLock.acquireLock().toCompletableFuture().join()) { // C2ME - async chunk loading
-                tag = NbtHelper.update(this.dataFixer, DataFixTypes.CHUNK, tag, i, 1493);
+                tag = NbtUtils.update(this.dataFixer, DataFixTypes.CHUNK, tag, i, 1493);
                 if (tag.getCompound("Level").getBoolean("hasLegacyStructureData")) {
                     if (this.featureUpdater == null) {
-                        this.featureUpdater = FeatureUpdater.create(registryKey, (PersistentStateManager)persistentStateManagerFactory.get());
+                        this.featureUpdater = LegacyStructureDataHandler.getLegacyStructureHandler(registryKey, (DimensionDataStorage)persistentStateManagerFactory.get());
                     }
 
-                    tag = this.featureUpdater.getUpdatedReferences(tag);
+                    tag = this.featureUpdater.updateFromLegacy(tag);
                 }
             } // C2ME - async chunk loading
         }
 
-        tag = NbtHelper.update(this.dataFixer, DataFixTypes.CHUNK, tag, Math.max(1493, i));
-        if (i < SharedConstants.getGameVersion().getWorldVersion()) {
-            tag.putInt("DataVersion", SharedConstants.getGameVersion().getWorldVersion());
+        tag = NbtUtils.update(this.dataFixer, DataFixTypes.CHUNK, tag, Math.max(1493, i));
+        if (i < SharedConstants.getCurrentVersion().getWorldVersion()) {
+            tag.putInt("DataVersion", SharedConstants.getCurrentVersion().getWorldVersion());
         }
 
         return tag;
     }
 
     @Redirect(method = "setNbt", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/FeatureUpdater;markResolved(J)V"))
-    private void onSetTagAtFeatureUpdaterMarkResolved(FeatureUpdater featureUpdater, long l) {
+    private void onSetTagAtFeatureUpdaterMarkResolved(LegacyStructureDataHandler featureUpdater, long l) {
         try (final AsyncLock.LockToken ignored = featureUpdaterLock.acquireLock().toCompletableFuture().join()) {
-            featureUpdater.markResolved(l);
+            featureUpdater.removeIndex(l);
         }
     }
 

@@ -6,12 +6,12 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalNotification;
 import com.ibm.asyncutil.locks.AsyncLock;
 import com.ibm.asyncutil.locks.AsyncNamedLock;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.storage.RegionBasedStorage;
-import net.minecraft.world.storage.RegionFile;
-import net.minecraft.world.storage.StorageIoWorker;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.storage.IOWorker;
+import net.minecraft.world.level.chunk.storage.RegionFile;
+import net.minecraft.world.level.chunk.storage.RegionFileStorage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
@@ -31,9 +31,9 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class C2MECachedRegionStorage extends StorageIoWorker {
+public class C2MECachedRegionStorage extends IOWorker {
 
-    private static final NbtCompound EMPTY_VALUE = new NbtCompound();
+    private static final CompoundTag EMPTY_VALUE = new CompoundTag();
     private static final Logger LOGGER = LogManager.getLogger();
     private static final ForkJoinPool IOExecutor = new ForkJoinPool(
             C2MEConfig.asyncIoConfig.ioWorkerParallelism,
@@ -41,8 +41,8 @@ public class C2MECachedRegionStorage extends StorageIoWorker {
             null, true
     );
 
-    private final RegionBasedStorage storage;
-    private final Cache<ChunkPos, NbtCompound> chunkCache;
+    private final RegionFileStorage storage;
+    private final Cache<ChunkPos, CompoundTag> chunkCache;
     private final ConcurrentHashMap<ChunkPos, CompletableFuture<Void>> writeFutures = new ConcurrentHashMap<>();
     private final AsyncNamedLock<ChunkPos> chunkLocks = AsyncNamedLock.createFair();
     private final AsyncNamedLock<RegionPos> regionLocks = AsyncNamedLock.createFair();
@@ -52,12 +52,12 @@ public class C2MECachedRegionStorage extends StorageIoWorker {
 
     public C2MECachedRegionStorage(File file, boolean bl, String string) {
         super(file, bl, string);
-        this.storage = new RegionBasedStorage(file, bl);
+        this.storage = new RegionFileStorage(file, bl);
         this.chunkCache = CacheBuilder.newBuilder()
                 .concurrencyLevel(Runtime.getRuntime().availableProcessors() * 2)
                 .expireAfterAccess(3, TimeUnit.SECONDS)
                 .maximumSize(8192)
-                .removalListener((RemovalNotification<ChunkPos, NbtCompound> notification) -> scheduleWrite(notification.getKey(), notification.getValue()))
+                .removalListener((RemovalNotification<ChunkPos, CompoundTag> notification) -> scheduleWrite(notification.getKey(), notification.getValue()))
                 .build();
         this.tick();
     }
@@ -82,17 +82,17 @@ public class C2MECachedRegionStorage extends StorageIoWorker {
         }, GlobalExecutors.scheduler);
     }
 
-    private void scheduleWrite(ChunkPos pos, NbtCompound chunkData) {
+    private void scheduleWrite(ChunkPos pos, CompoundTag chunkData) {
         writeFutures.put(pos, regionLocks.acquireLock(new RegionPos(pos)).toCompletableFuture().thenCombineAsync(getRegionFile(pos), (lockToken, regionFile) -> {
             try {
                 if (chunkData == null || chunkData == EMPTY_VALUE) {
                     try {
-                        regionFile.method_31740(pos);
+                        regionFile.clear(pos);
                     } catch (Throwable t) {
                         LOGGER.error("Failed to store chunk {}", pos, t);
                     }
                 } else {
-                    try (final DataOutputStream dataOutputStream = regionFile.getChunkOutputStream(pos)) {
+                    try (final DataOutputStream dataOutputStream = regionFile.getChunkDataOutputStream(pos)) {
                         NbtIo.write(chunkData, dataOutputStream);
                     } catch (Throwable t) {
                         LOGGER.error("Failed to store chunk {}", pos, t);
@@ -107,7 +107,7 @@ public class C2MECachedRegionStorage extends StorageIoWorker {
     }
 
     @Override
-    public CompletableFuture<Void> setResult(ChunkPos pos, @Nullable NbtCompound nbt) {
+    public CompletableFuture<Void> store(ChunkPos pos, @Nullable CompoundTag nbt) {
         ensureOpen();
         Preconditions.checkNotNull(pos);
         return chunkLocks.acquireLock(pos).toCompletableFuture().thenAcceptAsync(lockToken -> {
@@ -119,11 +119,11 @@ public class C2MECachedRegionStorage extends StorageIoWorker {
         }, GlobalExecutors.scheduler);
     }
 
-    public CompletableFuture<NbtCompound> getNbtAtAsync(ChunkPos pos) {
+    public CompletableFuture<CompoundTag> getNbtAtAsync(ChunkPos pos) {
         ensureOpen();
         // Check cache
         {
-            final NbtCompound cachedValue = this.chunkCache.getIfPresent(pos);
+            final CompoundTag cachedValue = this.chunkCache.getIfPresent(pos);
             if (cachedValue != null) {
                 if (cachedValue == EMPTY_VALUE)
                     return CompletableFuture.completedFuture(null);
@@ -134,7 +134,7 @@ public class C2MECachedRegionStorage extends StorageIoWorker {
         return chunkLocks.acquireLock(pos).toCompletableFuture().thenComposeAsync(lockToken -> {
             try {
                 // Check again in single-threaded environment
-                final NbtCompound cachedValue = this.chunkCache.getIfPresent(pos);
+                final CompoundTag cachedValue = this.chunkCache.getIfPresent(pos);
                 if (cachedValue != null) {
                     if (cachedValue == EMPTY_VALUE)
                         return CompletableFuture.completedFuture(null);
@@ -143,8 +143,8 @@ public class C2MECachedRegionStorage extends StorageIoWorker {
                 }
                 return regionLocks.acquireLock(new RegionPos(pos)).thenCombineAsync(getRegionFile(pos), (lockToken1, regionFile) -> {
                     try {
-                        final NbtCompound queriedTag;
-                        try (final DataInputStream dataInputStream = regionFile.getChunkInputStream(pos)) {
+                        final CompoundTag queriedTag;
+                        try (final DataInputStream dataInputStream = regionFile.getChunkDataInputStream(pos)) {
                             if (dataInputStream != null)
                                 queriedTag = NbtIo.read(dataInputStream);
                             else
@@ -176,15 +176,15 @@ public class C2MECachedRegionStorage extends StorageIoWorker {
 
     @Nullable
     @Override
-    public NbtCompound getNbt(ChunkPos pos) {
+    public CompoundTag load(ChunkPos pos) {
         return getNbtAtAsync(pos).join();
     }
 
     @Override
-    public CompletableFuture<Void> completeAll() {
+    public CompletableFuture<Void> synchronize() {
         chunkCache.invalidateAll();
         try {
-            storage.sync();
+            storage.flush();
         } catch (Throwable t) {
             LOGGER.warn("Failed to synchronized chunks", t);
         }
@@ -194,13 +194,13 @@ public class C2MECachedRegionStorage extends StorageIoWorker {
     @Override
     public void close() throws IOException {
         if (this.isClosed.compareAndSet(false, true)) {
-            completeAll().join();
+            synchronize().join();
             this.storage.close();
         }
     }
 
     @Override
-    protected CompletableFuture<NbtCompound> readChunkData(ChunkPos pos) {
+    protected CompletableFuture<CompoundTag> loadAsync(ChunkPos pos) {
         return this.getNbtAtAsync(pos);
     }
 

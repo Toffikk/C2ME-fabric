@@ -5,13 +5,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.registry.Registry;
-import net.minecraft.world.HeightLimitView;
-import net.minecraft.world.biome.Biome;
-import net.minecraft.world.biome.source.BiomeArray;
-import net.minecraft.world.biome.source.BiomeCoords;
-import net.minecraft.world.biome.source.BiomeLayerSampler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.threadly.concurrent.UnfairExecutor;
@@ -19,6 +12,13 @@ import org.threadly.concurrent.UnfairExecutor;
 import java.util.List;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import net.minecraft.core.QuartPos;
+import net.minecraft.core.Registry;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.LevelHeightAccessor;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.chunk.ChunkBiomeContainer;
+import net.minecraft.world.level.newbiome.layer.Layer;
 
 public class BiomeCache {
 
@@ -30,48 +30,48 @@ public class BiomeCache {
 
     private final UncachedBiomeSource uncachedBiomeSource;
 
-    private final AtomicReference<HeightLimitView> finalHeightLimitView = new AtomicReference<>(null);
+    private final AtomicReference<LevelHeightAccessor> finalHeightLimitView = new AtomicReference<>(null);
 
-    public BiomeCache(ThreadLocal<BiomeLayerSampler> sampler, Registry<Biome> registry, List<Biome> biomes) {
+    public BiomeCache(ThreadLocal<Layer> sampler, Registry<Biome> registry, List<Biome> biomes) {
         this.registry = registry;
         this.biomes = biomes;
         this.uncachedBiomeSource = new UncachedBiomeSource(biomes, sampler, registry);
     }
 
-    private final LoadingCache<ChunkPos, BiomeArray> biomeCache = CacheBuilder.newBuilder()
+    private final LoadingCache<ChunkPos, ChunkBiomeContainer> biomeCache = CacheBuilder.newBuilder()
             .weakKeys()
             .softValues()
             .maximumSize(8192)
             .build(new CacheLoader<>() {
                 @Override
-                public BiomeArray load(ChunkPos key) {
+                public ChunkBiomeContainer load(ChunkPos key) {
                     if (finalHeightLimitView.get() == null) throw new IllegalStateException(String.format("Cannot populate non-configured biome cache %s", BiomeCache.this));
-                    return new BiomeArray(registry, finalHeightLimitView.get(), key, uncachedBiomeSource);
+                    return new ChunkBiomeContainer(registry, finalHeightLimitView.get(), key, uncachedBiomeSource);
                 }
             });
 
-    private final ThreadLocal<WeakHashMap<ChunkPos, BiomeArray>> threadLocalCache = ThreadLocal.withInitial(WeakHashMap::new);
+    private final ThreadLocal<WeakHashMap<ChunkPos, ChunkBiomeContainer>> threadLocalCache = ThreadLocal.withInitial(WeakHashMap::new);
 
     public Biome getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
         if (finalHeightLimitView.get() == null) {
             LOGGER.warn("Tried to lookup non-configured biome cache {}, falling back to uncached lookup", this);
-            return uncachedBiomeSource.getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
+            return uncachedBiomeSource.getNoiseBiome(biomeX, biomeY, biomeZ);
         }
-        final ChunkPos chunkPos = new ChunkPos(BiomeCoords.toChunk(biomeX), BiomeCoords.toChunk(biomeZ));
-        final int startX = BiomeCoords.fromBlock(chunkPos.getStartX());
-        final int startZ = BiomeCoords.fromBlock(chunkPos.getStartZ());
-        return threadLocalCache.get().computeIfAbsent(chunkPos, biomeCache).getBiomeForNoiseGen(biomeX - startX, biomeY, biomeZ - startZ);
+        final ChunkPos chunkPos = new ChunkPos(QuartPos.toSection(biomeX), QuartPos.toSection(biomeZ));
+        final int startX = QuartPos.fromBlock(chunkPos.getMinBlockX());
+        final int startZ = QuartPos.fromBlock(chunkPos.getMinBlockZ());
+        return threadLocalCache.get().computeIfAbsent(chunkPos, biomeCache).getNoiseBiome(biomeX - startX, biomeY, biomeZ - startZ);
     }
 
-    public BiomeArray preloadBiomes(HeightLimitView view, ChunkPos pos, BiomeArray def) {
+    public ChunkBiomeContainer preloadBiomes(LevelHeightAccessor view, ChunkPos pos, ChunkBiomeContainer def) {
         Preconditions.checkNotNull(view);
         if (!finalHeightLimitView.compareAndSet(null, view)) {
-            if (view.getBottomY() != finalHeightLimitView.get().getBottomY()
-                    || view.getTopY() != finalHeightLimitView.get().getTopY())
+            if (view.getMinBuildHeight() != finalHeightLimitView.get().getMinBuildHeight()
+                    || view.getMaxBuildHeight() != finalHeightLimitView.get().getMaxBuildHeight())
                 throw new IllegalArgumentException(String.format("Cannot modify %s height value : expected %d ~ %d but got %d ~ %d",
-                        this, finalHeightLimitView.get().getBottomY(), finalHeightLimitView.get().getTopY(), view.getBottomY(), view.getTopY()));
+                        this, finalHeightLimitView.get().getMinBuildHeight(), finalHeightLimitView.get().getMaxBuildHeight(), view.getMinBuildHeight(), view.getMaxBuildHeight()));
         } else {
-            LOGGER.info("Successfully setup {} with height: {} ~ {}", this, view.getBottomY(), view.getTopY());
+            LOGGER.info("Successfully setup {} with height: {} ~ {}", this, view.getMinBuildHeight(), view.getMaxBuildHeight());
         }
         if (def != null) {
             this.biomeCache.put(pos, def);

@@ -1,6 +1,5 @@
 package org.yatopiamc.c2me.mixin.optimization.worldgen.threadsafe_weightedlist;
 
-import net.minecraft.util.collection.WeightedList;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
@@ -9,25 +8,26 @@ import org.spongepowered.asm.mixin.Shadow;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
+import net.minecraft.world.entity.ai.behavior.ShufflingList;
 
-@Mixin(WeightedList.class)
+@Mixin(ShufflingList.class)
 public class MixinWeightedList<U> {
 
-    @Shadow @Final public List<WeightedList.Entry<U>> entries;
+    @Shadow @Final public List<ShufflingList.WeightedEntry<U>> entries;
 
     /**
      * @author ishland
      * @reason create new instance on shuffling
      */
     @Overwrite
-    public WeightedList<U> shuffle() {
+    public ShufflingList<U> shuffle() {
         // TODO [VanillaCopy]
-        final WeightedList<U> newList = new WeightedList<>(entries); // C2ME - use new instance
+        final ShufflingList<U> newList = new ShufflingList<>(entries); // C2ME - use new instance
         newList.entries.forEach((entry) -> { // C2ME - use new instance
-            entry.setShuffledOrder(new Random().nextFloat());
+            entry.setRandom(new Random().nextFloat());
         });
         newList.entries.sort(Comparator.comparingDouble((object) -> { // C2ME - use new instance
-            return ((WeightedList.Entry)object).getShuffledOrder();
+            return ((ShufflingList.WeightedEntry)object).getRandWeight();
         }));
         return newList; // C2ME - use new instance
     }

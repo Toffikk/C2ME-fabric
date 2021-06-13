@@ -2,8 +2,6 @@ package org.yatopiamc.c2me.common.threading.worldgen;
 
 import com.ibm.asyncutil.locks.AsyncLock;
 import com.ibm.asyncutil.locks.AsyncNamedLock;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.chunk.ChunkStatus;
 import org.yatopiamc.c2me.common.config.C2MEConfig;
 import org.yatopiamc.c2me.common.threading.GlobalExecutors;
 import org.yatopiamc.c2me.common.util.AsyncCombinedLock;
@@ -15,6 +13,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.ChunkStatus;
 
 import static org.yatopiamc.c2me.common.threading.worldgen.ChunkStatusThreadingType.AS_IS;
 import static org.yatopiamc.c2me.common.threading.worldgen.ChunkStatusThreadingType.PARALLELIZED;

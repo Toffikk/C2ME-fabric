@@ -1,26 +1,26 @@
 package org.yatopiamc.c2me.mixin.threading.chunkio;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.server.world.SimpleTickScheduler;
-import net.minecraft.util.Identifier;
-import net.minecraft.world.TickScheduler;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.yatopiamc.c2me.common.util.DeepCloneable;
 
 import java.util.function.Function;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.ChunkTickList;
+import net.minecraft.world.level.TickList;
 
-@Mixin(SimpleTickScheduler.class)
+@Mixin(ChunkTickList.class)
 public abstract class MixinSimpleTickScheduler<T> implements DeepCloneable {
 
-    @Shadow @Final private Function<T, Identifier> identifierProvider;
+    @Shadow @Final private Function<T, ResourceLocation> identifierProvider;
 
-    @Shadow public abstract void scheduleTo(TickScheduler<T> scheduler);
+    @Shadow public abstract void scheduleTo(TickList<T> scheduler);
 
     @Override
     public Object deepClone() {
-        final SimpleTickScheduler<T> scheduler = new SimpleTickScheduler<>(identifierProvider, new ObjectArrayList<>());
+        final ChunkTickList<T> scheduler = new ChunkTickList<>(identifierProvider, new ObjectArrayList<>());
         scheduleTo(scheduler);
         return scheduler;
     }

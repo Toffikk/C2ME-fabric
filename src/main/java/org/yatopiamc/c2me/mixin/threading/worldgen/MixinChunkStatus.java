@@ -1,14 +1,6 @@
 package org.yatopiamc.c2me.mixin.threading.worldgen;
 
 import com.mojang.datafixers.util.Either;
-import net.minecraft.server.world.ChunkHolder;
-import net.minecraft.server.world.ServerLightingProvider;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.structure.StructureManager;
-import net.minecraft.util.registry.Registry;
-import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.chunk.ChunkStatus;
-import net.minecraft.world.gen.chunk.ChunkGenerator;
 import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,6 +19,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import net.minecraft.core.Registry;
+import net.minecraft.server.level.ChunkHolder;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ThreadedLevelLightEngine;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.ChunkStatus;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
 
 @Mixin(ChunkStatus.class)
 public abstract class MixinChunkStatus implements IChunkStatus {
@@ -46,7 +46,7 @@ public abstract class MixinChunkStatus implements IChunkStatus {
             this.reducedTaskRadius = 0;
         } else {
             for (int i = 0; i <= this.taskMargin; i++) {
-                final ChunkStatus status = ChunkStatus.byDistanceFromFull(ChunkStatus.getDistanceFromFull((ChunkStatus) (Object) this) + i); // TODO [VanillaCopy] from TACS getRequiredStatusForGeneration
+                final ChunkStatus status = ChunkStatus.getStatusAroundFullChunk(ChunkStatus.getDistance((ChunkStatus) (Object) this) + i); // TODO [VanillaCopy] from TACS getRequiredStatusForGeneration
                 if (status == ChunkStatus.STRUCTURE_STARTS) {
                     this.reducedTaskRadius = Math.min(this.taskMargin, i);
                     break;
@@ -73,11 +73,11 @@ public abstract class MixinChunkStatus implements IChunkStatus {
      * @reason take over generation & improve chunk status transition speed
      */
     @Overwrite
-    public CompletableFuture<Either<Chunk, ChunkHolder.Unloaded>> runGenerationTask(Executor executor, ServerWorld serverWorld, ChunkGenerator chunkGenerator, StructureManager structureManager, ServerLightingProvider serverLightingProvider, Function<Chunk, CompletableFuture<Either<Chunk, ChunkHolder.Unloaded>>> function, List<Chunk> list) {
-        final Chunk targetChunk = list.get(list.size() / 2);
-        final Supplier<CompletableFuture<Either<Chunk, ChunkHolder.Unloaded>>> generationTask = () ->
+    public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> runGenerationTask(Executor executor, ServerLevel serverWorld, ChunkGenerator chunkGenerator, StructureManager structureManager, ThreadedLevelLightEngine serverLightingProvider, Function<ChunkAccess, CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>>> function, List<ChunkAccess> list) {
+        final ChunkAccess targetChunk = list.get(list.size() / 2);
+        final Supplier<CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>>> generationTask = () ->
                 this.generationTask.doWork((ChunkStatus) (Object) this, executor, serverWorld, chunkGenerator, structureManager, serverLightingProvider, function, list, targetChunk);
-        if (targetChunk.getStatus().isAtLeast((ChunkStatus) (Object) this)) {
+        if (targetChunk.getStatus().isOrAfter((ChunkStatus) (Object) this)) {
             return generationTask.get();
         } else {
             int lockRadius = C2MEConfig.threadedWorldGenConfig.reduceLockRadius && this.reducedTaskRadius != -1 ? this.reducedTaskRadius : this.taskMargin;

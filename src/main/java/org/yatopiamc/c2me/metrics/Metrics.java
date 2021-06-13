@@ -4,12 +4,11 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.MinecraftVersion;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.DetectedVersion;
+import net.minecraft.client.Minecraft;
 import net.minecraft.server.MinecraftServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import javax.net.ssl.HttpsURLConnection;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -110,11 +109,11 @@ public class Metrics {
     private void appendPlatformData(JsonObjectBuilder builder) {
         builder.appendField("playerAmount", getPlayerAmount());
         if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
-            builder.appendField("onlineMode", MinecraftClient.getInstance().getSession().getAccessToken() != null ? 1 : 0);
+            builder.appendField("onlineMode", Minecraft.getInstance().getUser().getAccessToken() != null ? 1 : 0);
         } else if (FabricLoader.getInstance().getEnvironmentType() == EnvType.SERVER) {
             final MinecraftServer minecraftServer = capturedServer.get();
             if (minecraftServer != null) {
-                builder.appendField("onlineMode", minecraftServer.isOnlineMode() ? 1 : 0);
+                builder.appendField("onlineMode", minecraftServer.usesAuthentication() ? 1 : 0);
             } else {
                 LOGGER.warn("No captured server found for dedicated server environment, assuming offline mode");
                 builder.appendField("onlineMode", 0);
@@ -124,7 +123,7 @@ public class Metrics {
             builder.appendField("onlineMode", 0);
         }
         //noinspection OptionalGetWithoutIsPresent
-        builder.appendField("bukkitVersion", FabricLoader.getInstance().getModContainer("fabricloader").get().getMetadata().getVersion().getFriendlyString() + " (MC: " + MinecraftVersion.GAME_VERSION.getReleaseTarget() + ")");
+        builder.appendField("bukkitVersion", FabricLoader.getInstance().getModContainer("fabricloader").get().getMetadata().getVersion().getFriendlyString() + " (MC: " + DetectedVersion.BUILT_IN.getReleaseTarget() + ")");
         builder.appendField("bukkitName", "fabric");
         builder.appendField("javaVersion", System.getProperty("java.version"));
         builder.appendField("osName", System.getProperty("os.name"));
@@ -141,7 +140,7 @@ public class Metrics {
     private int getPlayerAmount() {
         final MinecraftServer minecraftServer = capturedServer.get();
         if (minecraftServer != null && minecraftServer.isRunning()) {
-            return minecraftServer.getCurrentPlayerCount();
+            return minecraftServer.getPlayerCount();
         } else {
             return 0;
         }

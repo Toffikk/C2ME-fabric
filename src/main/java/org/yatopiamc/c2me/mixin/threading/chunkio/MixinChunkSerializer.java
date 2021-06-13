@@ -1,22 +1,5 @@
 package org.yatopiamc.c2me.mixin.threading.chunkio;
 
-import net.minecraft.block.Block;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.server.world.ServerTickScheduler;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.ChunkSerializer;
-import net.minecraft.world.LightType;
-import net.minecraft.world.TickScheduler;
-import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.chunk.ChunkSection;
-import net.minecraft.world.chunk.WorldChunk;
-import net.minecraft.world.chunk.light.ChunkLightingView;
-import net.minecraft.world.chunk.light.LightingProvider;
-import net.minecraft.world.poi.PointOfInterestStorage;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -25,55 +8,72 @@ import org.yatopiamc.c2me.common.threading.chunkio.ChunkIoMainThreadTaskUtils;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.world.entity.ai.village.poi.PoiManager;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.ServerTickList;
+import net.minecraft.world.level.TickList;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.storage.ChunkSerializer;
+import net.minecraft.world.level.lighting.LayerLightEventListener;
+import net.minecraft.world.level.lighting.LevelLightEngine;
+import net.minecraft.world.level.material.Fluid;
 
 @Mixin(ChunkSerializer.class)
 public class MixinChunkSerializer {
 
     @Redirect(method = "deserialize", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/poi/PointOfInterestStorage;initForPalette(Lnet/minecraft/util/math/ChunkPos;Lnet/minecraft/world/chunk/ChunkSection;)V"))
-    private static void onPoiStorageInitForPalette(PointOfInterestStorage pointOfInterestStorage, ChunkPos chunkPos, ChunkSection chunkSection) {
-        ChunkIoMainThreadTaskUtils.executeMain(() -> pointOfInterestStorage.initForPalette(chunkPos, chunkSection));
+    private static void onPoiStorageInitForPalette(PoiManager pointOfInterestStorage, ChunkPos chunkPos, LevelChunkSection chunkSection) {
+        ChunkIoMainThreadTaskUtils.executeMain(() -> pointOfInterestStorage.checkConsistencyWithBlocks(chunkPos, chunkSection));
     }
 
     @Redirect(method = "serialize", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/chunk/Chunk;getBlockEntityPositions()Ljava/util/Set;"))
-    private static Set<BlockPos> onChunkGetBlockEntityPositions(Chunk chunk) {
+    private static Set<BlockPos> onChunkGetBlockEntityPositions(ChunkAccess chunk) {
         final AsyncSerializationManager.Scope scope = AsyncSerializationManager.getScope(chunk.getPos());
-        return scope != null ? scope.blockEntities.keySet() : chunk.getBlockEntityPositions();
+        return scope != null ? scope.blockEntities.keySet() : chunk.getBlockEntitiesPos();
     }
 
     @Redirect(method = "serialize", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/chunk/Chunk;getPackedBlockEntityNbt(Lnet/minecraft/util/math/BlockPos;)Lnet/minecraft/nbt/NbtCompound;"))
-    private static NbtCompound onChunkGetPackedBlockEntityNbt(Chunk chunk, BlockPos pos) {
+    private static CompoundTag onChunkGetPackedBlockEntityNbt(ChunkAccess chunk, BlockPos pos) {
         final AsyncSerializationManager.Scope scope = AsyncSerializationManager.getScope(chunk.getPos());
-        if (scope == null) return chunk.getPackedBlockEntityNbt(pos);
+        if (scope == null) return chunk.getBlockEntityNbtForSaving(pos);
         final BlockEntity blockEntity = scope.blockEntities.get(pos);
         if (blockEntity == null) return null;
-        final NbtCompound compoundTag = new NbtCompound();
-        if (chunk instanceof WorldChunk) compoundTag.putBoolean("keepPacked", false);
-        blockEntity.writeNbt(compoundTag);
+        final CompoundTag compoundTag = new CompoundTag();
+        if (chunk instanceof LevelChunk) compoundTag.putBoolean("keepPacked", false);
+        blockEntity.save(compoundTag);
         return compoundTag;
     }
 
     @Redirect(method = "serialize", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/chunk/Chunk;getBlockTickScheduler()Lnet/minecraft/world/TickScheduler;"))
-    private static TickScheduler<Block> onChunkGetBlockTickScheduler(Chunk chunk) {
+    private static TickList<Block> onChunkGetBlockTickScheduler(ChunkAccess chunk) {
         final AsyncSerializationManager.Scope scope = AsyncSerializationManager.getScope(chunk.getPos());
-        return scope != null ? scope.blockTickScheduler : chunk.getBlockTickScheduler();
+        return scope != null ? scope.blockTickScheduler : chunk.getBlockTicks();
     }
 
     @Redirect(method = "serialize", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/chunk/Chunk;getFluidTickScheduler()Lnet/minecraft/world/TickScheduler;"))
-    private static TickScheduler<Fluid> onChunkGetFluidTickScheduler(Chunk chunk) {
+    private static TickList<Fluid> onChunkGetFluidTickScheduler(ChunkAccess chunk) {
         final AsyncSerializationManager.Scope scope = AsyncSerializationManager.getScope(chunk.getPos());
-        return scope != null ? scope.fluidTickScheduler : chunk.getFluidTickScheduler();
+        return scope != null ? scope.fluidTickScheduler : chunk.getLiquidTicks();
     }
 
     @Redirect(method = "serialize", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/world/ServerTickScheduler;toNbt(Lnet/minecraft/util/math/ChunkPos;)Lnet/minecraft/nbt/NbtList;"))
-    private static NbtList onServerTickSchedulerToNbt(@SuppressWarnings("rawtypes") ServerTickScheduler serverTickScheduler, ChunkPos chunkPos) {
+    private static ListTag onServerTickSchedulerToNbt(@SuppressWarnings("rawtypes") ServerTickList serverTickScheduler, ChunkPos chunkPos) {
         final AsyncSerializationManager.Scope scope = AsyncSerializationManager.getScope(chunkPos);
-        return scope != null ? CompletableFuture.supplyAsync(() -> serverTickScheduler.toNbt(chunkPos), serverTickScheduler.world.serverChunkManager.mainThreadExecutor).join() : serverTickScheduler.toNbt(chunkPos);
+        return scope != null ? CompletableFuture.supplyAsync(() -> serverTickScheduler.save(chunkPos), serverTickScheduler.level.chunkSource.mainThreadProcessor).join() : serverTickScheduler.save(chunkPos);
     }
 
     @Redirect(method = "serialize", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/chunk/light/LightingProvider;get(Lnet/minecraft/world/LightType;)Lnet/minecraft/world/chunk/light/ChunkLightingView;"))
-    private static ChunkLightingView onLightingProviderGet(LightingProvider lightingProvider, LightType lightType) {
+    private static LayerLightEventListener onLightingProviderGet(LevelLightEngine lightingProvider, LightLayer lightType) {
         final AsyncSerializationManager.Scope scope = AsyncSerializationManager.getScope(null);
-        return scope != null ? scope.lighting.get(lightType) : lightingProvider.get(lightType);
+        return scope != null ? scope.lighting.get(lightType) : lightingProvider.getLayerListener(lightType);
     }
 
 }

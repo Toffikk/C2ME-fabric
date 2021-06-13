@@ -2,15 +2,15 @@ package org.yatopiamc.c2me.mixin.threading.worldgen;
 
 import com.ibm.asyncutil.locks.AsyncLock;
 import com.ibm.asyncutil.locks.AsyncNamedLock;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.ChunkPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.yatopiamc.c2me.common.threading.worldgen.IWorldGenLockable;
 
-@Mixin(ServerWorld.class)
+@Mixin(ServerLevel.class)
 public class MixinServerWorld implements IWorldGenLockable {
 
     private volatile AsyncLock worldGenSingleThreadedLock = null;
