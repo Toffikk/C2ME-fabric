@@ -5,10 +5,10 @@
   "compatibilityLevel": "JAVA_16",
   "mixinPriority": 1100,
   "mixins": [
-    "IStorageIoWorker",
-    "IWorldUpdater",
+    "IIOWorker",
+    "IWorldUpgrader",
     "MixinMain",
-    "MixinWorldUpdater"
+    "MixinWorldUpgrader"
   ],
   "client": [
   ],

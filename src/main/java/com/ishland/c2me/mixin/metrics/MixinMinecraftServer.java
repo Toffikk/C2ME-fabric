@@ -3,11 +3,11 @@ package com.ishland.c2me.mixin.metrics;
 import com.google.common.collect.ImmutableMap;
 import com.ishland.c2me.common.config.C2MEConfig;
 import com.ishland.c2me.metrics.Metrics;
-import net.minecraft.MinecraftVersion;
+import net.minecraft.DetectedVersion;
+import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.gametest.framework.GameTestServer;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.dedicated.MinecraftDedicatedServer;
-import net.minecraft.server.integrated.IntegratedServer;
-import net.minecraft.test.TestServer;
+import net.minecraft.server.dedicated.DedicatedServer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -23,9 +23,9 @@ public class MixinMinecraftServer {
         final Metrics metrics = new Metrics(10514, (MinecraftServer) (Object) this);
         metrics.addCustomChart(new Metrics.SimplePie("useThreadedWorldGeneration", () -> String.valueOf(C2MEConfig.threadedWorldGenConfig.enabled)));
         metrics.addCustomChart(new Metrics.SimplePie("serverType", () -> {
-            if ((Object) this instanceof MinecraftDedicatedServer) return "Dedicated Server";
+            if ((Object) this instanceof DedicatedServer) return "Dedicated Server";
             if ((Object) this instanceof IntegratedServer) return "Integrated Server";
-            if ((Object) this instanceof TestServer) return "Test Server";
+            if ((Object) this instanceof GameTestServer) return "Test Server";
             return "Unknown: " + this.getClass().getName();
         }));
         if (C2MEConfig.threadedWorldGenConfig.enabled) {
@@ -33,7 +33,7 @@ public class MixinMinecraftServer {
             metrics.addCustomChart(new Metrics.SimplePie("useReducedLockRadius", () -> String.valueOf(C2MEConfig.threadedWorldGenConfig.reduceLockRadius)));
             metrics.addCustomChart(new Metrics.SimplePie("useGlobalBiomeCache", () -> String.valueOf(C2MEConfig.threadedWorldGenConfig.useGlobalBiomeCache)));
         }
-        metrics.addCustomChart(new Metrics.DrilldownPie("detailedMinecraftVersion", () -> ImmutableMap.of(MinecraftVersion.GAME_VERSION.getReleaseTarget(), ImmutableMap.of(MinecraftVersion.GAME_VERSION.getName(), 1))));
+        metrics.addCustomChart(new Metrics.DrilldownPie("detailedMinecraftVersion", () -> ImmutableMap.of(DetectedVersion.BUILT_IN.getReleaseTarget(), ImmutableMap.of(DetectedVersion.BUILT_IN.getName(), 1))));
     }
 
 }

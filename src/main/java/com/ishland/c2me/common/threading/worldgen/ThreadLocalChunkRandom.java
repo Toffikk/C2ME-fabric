@@ -1,31 +1,30 @@
 package com.ishland.c2me.common.threading.worldgen;
 
-import net.minecraft.world.gen.ChunkRandom;
-
 import java.util.function.Consumer;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
+import net.minecraft.world.level.levelgen.WorldgenRandom;
 
-public class ThreadLocalChunkRandom extends ChunkRandom {
+public class ThreadLocalChunkRandom extends WorldgenRandom {
 
-    private final ThreadLocal<ChunkRandom> chunkRandomThreadLocal;
+    private final ThreadLocal<WorldgenRandom> chunkRandomThreadLocal;
 
     public ThreadLocalChunkRandom(long seed) {
         this(seed, chunkRandom -> {});
     }
 
-    public ThreadLocalChunkRandom(long seed, Consumer<ChunkRandom> preHook) {
+    public ThreadLocalChunkRandom(long seed, Consumer<WorldgenRandom> preHook) {
         this.chunkRandomThreadLocal = ThreadLocal.withInitial(() -> {
-            final ChunkRandom chunkRandom = new ChunkRandom(seed);
+            final WorldgenRandom chunkRandom = new WorldgenRandom(seed);
             preHook.accept(chunkRandom);
             return chunkRandom;
         });
     }
 
     @Override
-    public int getSampleCount() {
-        return chunkRandomThreadLocal.get().getSampleCount();
+    public int getCount() {
+        return chunkRandomThreadLocal.get().getCount();
     }
 
     @Override
@@ -34,33 +33,33 @@ public class ThreadLocalChunkRandom extends ChunkRandom {
     }
 
     @Override
-    public long setTerrainSeed(int chunkX, int chunkZ) {
-        return chunkRandomThreadLocal.get().setTerrainSeed(chunkX, chunkZ);
+    public long setBaseChunkSeed(int chunkX, int chunkZ) {
+        return chunkRandomThreadLocal.get().setBaseChunkSeed(chunkX, chunkZ);
     }
 
     @Override
-    public long setPopulationSeed(long worldSeed, int blockX, int blockZ) {
-        return chunkRandomThreadLocal.get().setPopulationSeed(worldSeed, blockX, blockZ);
+    public long setDecorationSeed(long worldSeed, int blockX, int blockZ) {
+        return chunkRandomThreadLocal.get().setDecorationSeed(worldSeed, blockX, blockZ);
     }
 
     @Override
-    public long setDecoratorSeed(long populationSeed, int index, int step) {
-        return chunkRandomThreadLocal.get().setDecoratorSeed(populationSeed, index, step);
+    public long setFeatureSeed(long populationSeed, int index, int step) {
+        return chunkRandomThreadLocal.get().setFeatureSeed(populationSeed, index, step);
     }
 
     @Override
-    public long setCarverSeed(long worldSeed, int chunkX, int chunkZ) {
-        return chunkRandomThreadLocal.get().setCarverSeed(worldSeed, chunkX, chunkZ);
+    public long setLargeFeatureSeed(long worldSeed, int chunkX, int chunkZ) {
+        return chunkRandomThreadLocal.get().setLargeFeatureSeed(worldSeed, chunkX, chunkZ);
     }
 
     @Override
-    public long setDeepslateSeed(long worldSeed, int x, int y, int z) {
-        return chunkRandomThreadLocal.get().setDeepslateSeed(worldSeed, x, y, z);
+    public long setBaseStoneSeed(long worldSeed, int x, int y, int z) {
+        return chunkRandomThreadLocal.get().setBaseStoneSeed(worldSeed, x, y, z);
     }
 
     @Override
-    public long setRegionSeed(long worldSeed, int regionX, int regionZ, int salt) {
-        return chunkRandomThreadLocal.get().setRegionSeed(worldSeed, regionX, regionZ, salt);
+    public long setLargeFeatureWithSalt(long worldSeed, int regionX, int regionZ, int salt) {
+        return chunkRandomThreadLocal.get().setLargeFeatureWithSalt(worldSeed, regionX, regionZ, salt);
     }
 
     @Override
@@ -170,8 +169,8 @@ public class ThreadLocalChunkRandom extends ChunkRandom {
     }
 
     @Override
-    public void skip(int count) {
-        chunkRandomThreadLocal.get().skip(count);
+    public void consumeCount(int count) {
+        chunkRandomThreadLocal.get().consumeCount(count);
     }
 
     @Override

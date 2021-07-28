@@ -2,7 +2,7 @@ package com.ishland.c2me.common.util;
 
 import com.ibm.asyncutil.locks.AsyncLock;
 import com.ibm.asyncutil.locks.AsyncNamedLock;
-import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.level.ChunkPos;
 
 import java.util.Optional;
 import java.util.Set;

@@ -2,13 +2,13 @@ package com.ishland.c2me.tests.testmod.mixin;
 
 import com.ishland.c2me.tests.testmod.PreGenTask;
 import com.sun.management.GcInfo;
+import net.minecraft.SystemReport;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.WorldGenerationProgressListener;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.SystemDetails;
-import net.minecraft.util.crash.CrashMemoryReserve;
-import net.minecraft.util.registry.RegistryKey;
-import net.minecraft.world.World;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.progress.ChunkProgressListener;
+import net.minecraft.util.MemoryReserve;
+import net.minecraft.world.level.Level;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -36,7 +36,7 @@ public abstract class MixinMinecraftServer {
     static Logger LOGGER;
     @Shadow
     @Final
-    private Map<RegistryKey<World>, ServerWorld> worlds;
+    private Map<ResourceKey<Level>, ServerLevel> worlds;
     @Shadow
     private volatile boolean running;
 
@@ -56,14 +56,14 @@ public abstract class MixinMinecraftServer {
                             this.worlds.entrySet().stream()
                                     .map(worldEntry -> String.format("%s;%s",
                                             worldEntry.getValue().toString(),
-                                            worldEntry.getKey().getValue().toString()))
+                                            worldEntry.getKey().location().toString()))
                                     .collect(Collectors.toSet())
                     ));
             long startTime = System.nanoTime();
             PreGenTask.PreGenEventListener eventListener = new PreGenTask.PreGenEventListener();
             final CompletableFuture<Void> future = CompletableFuture.allOf(
                     this.worlds.values().stream()
-                            .map((ServerWorld world1) -> PreGenTask.runPreGen(world1, eventListener))
+                            .map((ServerLevel world1) -> PreGenTask.runPreGen(world1, eventListener))
                             .distinct()
                             .toArray(CompletableFuture[]::new)
             );
@@ -73,16 +73,16 @@ public abstract class MixinMinecraftServer {
                 boolean doTick = System.currentTimeMillis() - lastTick.get() > 50L;
                 boolean hasTask = doTick;
                 if (this.runTask()) hasTask = true;
-                for (ServerWorld world : this.worlds.values()) {
-                    if (world.getChunkManager().executeQueuedTasks()) hasTask = true;
-                    if (doTick) world.getChunkManager().tick(() -> true);
+                for (ServerLevel world : this.worlds.values()) {
+                    if (world.getChunkSource().pollTask()) hasTask = true;
+                    if (doTick) world.getChunkSource().tick(() -> true);
                 }
                 if (doTick) lastTick.set(System.currentTimeMillis());
                 if (!hasTask) LockSupport.parkNanos("waiting for tasks", 100000L);
             }
             if (!isRunning()) LOGGER.error("Exiting due to server stopping");
-            for (ServerWorld world : this.worlds.values()) {
-                world.getChunkManager().tick(() -> true);
+            for (ServerLevel world : this.worlds.values()) {
+                world.getChunkSource().tick(() -> true);
             }
             long duration = System.nanoTime() - startTime;
             final String message = String.format("PreGen completed after %.1fs", duration / 1_000_000_000.0);
@@ -100,23 +100,23 @@ public abstract class MixinMinecraftServer {
             if (lastGcInfo.getDuration() > 200) {
                 LOGGER.warn("High GC overhead, saving worlds...");
                 this.worlds.values().forEach(world -> {
-                    world.getChunkManager().tick(() -> true);
-                    world.getChunkManager().save(false);
+                    world.getChunkSource().tick(() -> true);
+                    world.getChunkSource().save(false);
                 });
-                this.worlds.values().forEach(world -> world.getChunkManager().threadedAnvilChunkStorage.completeAll());
+                this.worlds.values().forEach(world -> world.getChunkSource().chunkMap.flushWorker());
             }
         });
     }
 
     @Redirect(method = "loadWorld", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;prepareStartRegion(Lnet/minecraft/server/WorldGenerationProgressListener;)V"))
-    private void redirectPrepareStartRegion(MinecraftServer server, WorldGenerationProgressListener worldGenerationProgressListener) {
+    private void redirectPrepareStartRegion(MinecraftServer server, ChunkProgressListener worldGenerationProgressListener) {
         LOGGER.info("Not preparing start region");
     }
 
     @Redirect(method = "runServer", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;addSystemDetails(Lnet/minecraft/util/SystemDetails;)Lnet/minecraft/util/SystemDetails;"))
-    private SystemDetails redirectRunServerAddSystemDetails(MinecraftServer server, SystemDetails details) {
-        CrashMemoryReserve.releaseMemory();
-        return server.addSystemDetails(details);
+    private SystemReport redirectRunServerAddSystemDetails(MinecraftServer server, SystemReport details) {
+        MemoryReserve.release();
+        return server.fillSystemReport(details);
     }
 
 }

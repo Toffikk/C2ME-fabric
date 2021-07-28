@@ -1,7 +1,7 @@
 package com.ishland.c2me.compatibility.mixin.betterend;
 
 import com.ishland.c2me.compatibility.common.betterend.ThreadLocalMutableBlockPos;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,7 +20,7 @@ public class MixinBiomeIslandFeature {
     @Mutable
     @Shadow(remap = false)
     @Final
-    private static BlockPos.Mutable CENTER;
+    private static BlockPos.MutableBlockPos CENTER;
 
     @Dynamic
     @Inject(method = "<clinit>", at = @At("RETURN"))

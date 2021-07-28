@@ -1,12 +1,11 @@
 package com.ishland.c2me.common.threading.chunkio;
 
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.util.math.ChunkPos;
-
 import java.util.concurrent.CompletableFuture;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.ChunkPos;
 
 public interface IAsyncChunkStorage {
 
-    CompletableFuture<NbtCompound> getNbtAtAsync(ChunkPos pos);
+    CompletableFuture<CompoundTag> getNbtAtAsync(ChunkPos pos);
 
 }

@@ -1,10 +1,10 @@
 package com.ishland.c2me.mixin.optimization.worldgen.the_end_biome_cache;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.noise.SimplexNoiseSampler;
-import net.minecraft.world.biome.Biome;
-import net.minecraft.world.biome.source.TheEndBiomeSource;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.TheEndBiomeSource;
+import net.minecraft.world.level.levelgen.synth.SimplexNoise;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
@@ -16,11 +16,11 @@ public abstract class MixinTheEndBiomeSource {
     @Shadow @Final private Biome centerBiome;
 
     @Shadow
-    public static float getNoiseAt(SimplexNoiseSampler simplexNoiseSampler, int i, int j) {
+    public static float getNoiseAt(SimplexNoise simplexNoiseSampler, int i, int j) {
         return 0;
     }
 
-    @Shadow @Final private SimplexNoiseSampler noise;
+    @Shadow @Final private SimplexNoise noise;
 
     @Shadow @Final private Biome highlandsBiome;
 
@@ -57,7 +57,7 @@ public abstract class MixinTheEndBiomeSource {
      */
     @Overwrite
     public Biome getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
-        final long key = ChunkPos.toLong(biomeX, biomeZ);
+        final long key = ChunkPos.asLong(biomeX, biomeZ);
         final Long2ObjectLinkedOpenHashMap<Biome> cacheThreadLocal = cache.get();
         final Biome biome = cacheThreadLocal.get(key);
         if (biome != null) {

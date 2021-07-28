@@ -1,11 +1,11 @@
 package com.ishland.c2me.tests.worlddiff;
 
-import net.minecraft.util.Util;
-import net.minecraft.util.crash.CrashMemoryReserve;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.File;
+import net.minecraft.Util;
+import net.minecraft.util.MemoryReserve;
 
 public class Main {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -35,7 +35,7 @@ public class Main {
                 }
             }
         } catch (Throwable t) {
-            if (t instanceof OutOfMemoryError) CrashMemoryReserve.releaseMemory();
+            if (t instanceof OutOfMemoryError) MemoryReserve.release();
             LOGGER.error("Unexpected exception thrown while testing", t);
         }
         System.out.println("Closing test instance");

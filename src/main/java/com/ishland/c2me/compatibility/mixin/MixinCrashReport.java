@@ -1,7 +1,7 @@
 package com.ishland.c2me.compatibility.mixin;
 
 import net.fabricmc.loader.api.ModContainer;
-import net.minecraft.util.crash.CrashReport;
+import net.minecraft.CrashReport;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(CrashReport.class)
 public class MixinCrashReport {
 
-    @Redirect(method = "asString", at = @At(value = "INVOKE", target = "Ljava/lang/StringBuilder;append(Ljava/lang/String;)Ljava/lang/StringBuilder;"))
+    @Redirect(method = "getFriendlyReport", at = @At(value = "INVOKE", target = "Ljava/lang/StringBuilder;append(Ljava/lang/String;)Ljava/lang/StringBuilder;"))
     private StringBuilder redirectAppend(StringBuilder stringBuilder, String str) {
         stringBuilder.append(str);
         if (str.equals("---- Minecraft Crash Report ----\n") && !C2MECompatibilityModule.getEnabledMods().isEmpty()) {

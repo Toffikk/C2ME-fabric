@@ -1,16 +1,15 @@
 package com.ishland.c2me.common.threading.worldgen.fixes.threading_fixes;
 
 import com.mojang.serialization.Codec;
-import net.minecraft.block.BlockState;
-import net.minecraft.world.biome.Biome;
-import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.gen.surfacebuilder.SurfaceBuilder;
-import net.minecraft.world.gen.surfacebuilder.SurfaceConfig;
-
 import java.util.Random;
 import java.util.function.Supplier;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.levelgen.surfacebuilders.SurfaceBuilder;
+import net.minecraft.world.level.levelgen.surfacebuilders.SurfaceBuilderConfiguration;
 
-public class ThreadLocalSurfaceBuilder<C extends SurfaceConfig> extends SurfaceBuilder<C> {
+public class ThreadLocalSurfaceBuilder<C extends SurfaceBuilderConfiguration> extends SurfaceBuilder<C> {
 
     private final ThreadLocal<SurfaceBuilder<C>> surfaceBuilderThreadLocal;
 
@@ -20,12 +19,12 @@ public class ThreadLocalSurfaceBuilder<C extends SurfaceConfig> extends SurfaceB
     }
 
     @Override
-    public void initSeed(long seed) {
-        this.surfaceBuilderThreadLocal.get().initSeed(seed);
+    public void initNoise(long seed) {
+        this.surfaceBuilderThreadLocal.get().initNoise(seed);
     }
 
     @Override
-    public void generate(Random random, Chunk chunk, Biome biome, int x, int z, int height, double noise, BlockState defaultBlock, BlockState defaultFluid, int seaLevel, int i, long l, C surfaceConfig) {
-        this.surfaceBuilderThreadLocal.get().generate(random, chunk, biome, x, z, height, noise, defaultBlock, defaultFluid, seaLevel, i, l, surfaceConfig);
+    public void apply(Random random, ChunkAccess chunk, Biome biome, int x, int z, int height, double noise, BlockState defaultBlock, BlockState defaultFluid, int seaLevel, int i, long l, C surfaceConfig) {
+        this.surfaceBuilderThreadLocal.get().apply(random, chunk, biome, x, z, height, noise, defaultBlock, defaultFluid, seaLevel, i, l, surfaceConfig);
     }
 }

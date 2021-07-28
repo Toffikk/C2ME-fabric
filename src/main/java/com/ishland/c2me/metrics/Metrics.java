@@ -3,7 +3,7 @@ package com.ishland.c2me.metrics;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.MinecraftVersion;
+import net.minecraft.DetectedVersion;
 import net.minecraft.server.MinecraftServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -107,9 +107,9 @@ public class Metrics {
 
     private void appendPlatformData(JsonObjectBuilder builder) {
         builder.appendField("playerAmount", getPlayerAmount());
-        builder.appendField("onlineMode", server.isOnlineMode() ? 1 : 0);
+        builder.appendField("onlineMode", server.usesAuthentication() ? 1 : 0);
         //noinspection OptionalGetWithoutIsPresent
-        builder.appendField("bukkitVersion", FabricLoader.getInstance().getModContainer("fabricloader").get().getMetadata().getVersion().getFriendlyString() + " (MC: " + MinecraftVersion.GAME_VERSION.getReleaseTarget() + ")");
+        builder.appendField("bukkitVersion", FabricLoader.getInstance().getModContainer("fabricloader").get().getMetadata().getVersion().getFriendlyString() + " (MC: " + DetectedVersion.BUILT_IN.getReleaseTarget() + ")");
         builder.appendField("bukkitName", "fabric");
         builder.appendField("javaVersion", System.getProperty("java.version"));
         builder.appendField("osName", System.getProperty("os.name"));
@@ -126,7 +126,7 @@ public class Metrics {
     private int getPlayerAmount() {
         final MinecraftServer minecraftServer = server;
         if (minecraftServer != null && minecraftServer.isRunning()) {
-            return minecraftServer.getCurrentPlayerCount();
+            return minecraftServer.getPlayerCount();
         } else {
             return 0;
         }

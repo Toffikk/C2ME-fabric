@@ -1,24 +1,24 @@
 package com.ishland.c2me.compatibility.common.betterend;
 
-import net.minecraft.util.BlockRotation;
-import net.minecraft.util.math.AxisCycleDirection;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Position;
-import net.minecraft.util.math.Vec3i;
+import net.minecraft.core.AxisCycle;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Position;
+import net.minecraft.core.Vec3i;
+import net.minecraft.world.level.block.Rotation;
 
-public class ThreadLocalMutableBlockPos extends BlockPos.Mutable {
+public class ThreadLocalMutableBlockPos extends BlockPos.MutableBlockPos {
 
-    private final ThreadLocal<BlockPos.Mutable> delegate = ThreadLocal.withInitial(BlockPos.Mutable::new);
+    private final ThreadLocal<BlockPos.MutableBlockPos> delegate = ThreadLocal.withInitial(BlockPos.MutableBlockPos::new);
 
     @Override
-    public BlockPos add(double d, double e, double f) {
-        return delegate.get().add(d, e, f);
+    public BlockPos offset(double d, double e, double f) {
+        return delegate.get().offset(d, e, f);
     }
 
     @Override
-    public BlockPos add(int i, int j, int k) {
-        return delegate.get().add(i, j, k);
+    public BlockPos offset(int i, int j, int k) {
+        return delegate.get().offset(i, j, k);
     }
 
     @Override
@@ -27,103 +27,103 @@ public class ThreadLocalMutableBlockPos extends BlockPos.Mutable {
     }
 
     @Override
-    public BlockPos offset(Direction direction, int i) {
-        return delegate.get().offset(direction, i);
+    public BlockPos relative(Direction direction, int i) {
+        return delegate.get().relative(direction, i);
     }
 
     @Override
-    public BlockPos offset(Direction.Axis axis, int i) {
-        return delegate.get().offset(axis, i);
+    public BlockPos relative(Direction.Axis axis, int i) {
+        return delegate.get().relative(axis, i);
     }
 
     @Override
-    public BlockPos rotate(BlockRotation rotation) {
+    public BlockPos rotate(Rotation rotation) {
         return delegate.get().rotate(rotation);
     }
 
     @Override
-    public Mutable set(int x, int y, int z) {
+    public MutableBlockPos set(int x, int y, int z) {
         return delegate.get().set(x, y, z);
     }
 
     @Override
-    public Mutable set(double x, double y, double z) {
+    public MutableBlockPos set(double x, double y, double z) {
         return delegate.get().set(x, y, z);
     }
 
     @Override
-    public Mutable set(Vec3i pos) {
+    public MutableBlockPos set(Vec3i pos) {
         return delegate.get().set(pos);
     }
 
     @Override
-    public Mutable set(long pos) {
+    public MutableBlockPos set(long pos) {
         return delegate.get().set(pos);
     }
 
     @Override
-    public Mutable set(AxisCycleDirection axis, int x, int y, int z) {
+    public MutableBlockPos set(AxisCycle axis, int x, int y, int z) {
         return delegate.get().set(axis, x, y, z);
     }
 
     @Override
-    public Mutable set(Vec3i pos, Direction direction) {
-        return delegate.get().set(pos, direction);
+    public MutableBlockPos setWithOffset(Vec3i pos, Direction direction) {
+        return delegate.get().setWithOffset(pos, direction);
     }
 
     @Override
-    public Mutable set(Vec3i pos, int x, int y, int z) {
-        return delegate.get().set(pos, x, y, z);
+    public MutableBlockPos setWithOffset(Vec3i pos, int x, int y, int z) {
+        return delegate.get().setWithOffset(pos, x, y, z);
     }
 
     @Override
-    public Mutable set(Vec3i vec1, Vec3i vec2) {
-        return delegate.get().set(vec1, vec2);
+    public MutableBlockPos setWithOffset(Vec3i vec1, Vec3i vec2) {
+        return delegate.get().setWithOffset(vec1, vec2);
     }
 
     @Override
-    public Mutable move(Direction direction) {
+    public MutableBlockPos move(Direction direction) {
         return delegate.get().move(direction);
     }
 
     @Override
-    public Mutable move(Direction direction, int distance) {
+    public MutableBlockPos move(Direction direction, int distance) {
         return delegate.get().move(direction, distance);
     }
 
     @Override
-    public Mutable move(int dx, int dy, int dz) {
+    public MutableBlockPos move(int dx, int dy, int dz) {
         return delegate.get().move(dx, dy, dz);
     }
 
     @Override
-    public Mutable move(Vec3i vec) {
+    public MutableBlockPos move(Vec3i vec) {
         return delegate.get().move(vec);
     }
 
     @Override
-    public Mutable clamp(Direction.Axis axis, int min, int max) {
+    public MutableBlockPos clamp(Direction.Axis axis, int min, int max) {
         return delegate.get().clamp(axis, min, max);
     }
 
     @Override
-    public Mutable setX(int i) {
+    public MutableBlockPos setX(int i) {
         return delegate.get().setX(i);
     }
 
     @Override
-    public Mutable setY(int i) {
+    public MutableBlockPos setY(int i) {
         return delegate.get().setY(i);
     }
 
     @Override
-    public Mutable setZ(int i) {
+    public MutableBlockPos setZ(int i) {
         return delegate.get().setZ(i);
     }
 
     @Override
-    public BlockPos toImmutable() {
-        return delegate.get().toImmutable();
+    public BlockPos immutable() {
+        return delegate.get().immutable();
     }
 
     @Override
@@ -132,8 +132,8 @@ public class ThreadLocalMutableBlockPos extends BlockPos.Mutable {
     }
 
     @Override
-    public BlockPos add(Vec3i vec3i) {
-        return delegate.get().add(vec3i);
+    public BlockPos offset(Vec3i vec3i) {
+        return delegate.get().offset(vec3i);
     }
 
     @Override
@@ -142,23 +142,23 @@ public class ThreadLocalMutableBlockPos extends BlockPos.Mutable {
     }
 
     @Override
-    public BlockPos up() {
-        return delegate.get().up();
+    public BlockPos above() {
+        return delegate.get().above();
     }
 
     @Override
-    public BlockPos up(int distance) {
-        return delegate.get().up(distance);
+    public BlockPos above(int distance) {
+        return delegate.get().above(distance);
     }
 
     @Override
-    public BlockPos down() {
-        return delegate.get().down();
+    public BlockPos below() {
+        return delegate.get().below();
     }
 
     @Override
-    public BlockPos down(int i) {
-        return delegate.get().down(i);
+    public BlockPos below(int i) {
+        return delegate.get().below(i);
     }
 
     @Override
@@ -202,23 +202,23 @@ public class ThreadLocalMutableBlockPos extends BlockPos.Mutable {
     }
 
     @Override
-    public BlockPos offset(Direction direction) {
-        return delegate.get().offset(direction);
+    public BlockPos relative(Direction direction) {
+        return delegate.get().relative(direction);
     }
 
     @Override
-    public BlockPos crossProduct(Vec3i pos) {
-        return delegate.get().crossProduct(pos);
+    public BlockPos cross(Vec3i pos) {
+        return delegate.get().cross(pos);
     }
 
     @Override
-    public BlockPos withY(int y) {
-        return delegate.get().withY(y);
+    public BlockPos atY(int y) {
+        return delegate.get().atY(y);
     }
 
     @Override
-    public Mutable mutableCopy() {
-        return delegate.get().mutableCopy();
+    public MutableBlockPos mutable() {
+        return delegate.get().mutable();
     }
 
     @Override
@@ -252,43 +252,43 @@ public class ThreadLocalMutableBlockPos extends BlockPos.Mutable {
     }
 
     @Override
-    public boolean isWithinDistance(Vec3i vec, double distance) {
-        return delegate.get().isWithinDistance(vec, distance);
+    public boolean closerThan(Vec3i vec, double distance) {
+        return delegate.get().closerThan(vec, distance);
     }
 
     @Override
-    public boolean isWithinDistance(Position pos, double distance) {
-        return delegate.get().isWithinDistance(pos, distance);
+    public boolean closerThan(Position pos, double distance) {
+        return delegate.get().closerThan(pos, distance);
     }
 
     @Override
-    public double getSquaredDistance(Vec3i vec) {
-        return delegate.get().getSquaredDistance(vec);
+    public double distSqr(Vec3i vec) {
+        return delegate.get().distSqr(vec);
     }
 
     @Override
-    public double getSquaredDistance(Position pos, boolean treatAsBlockPos) {
-        return delegate.get().getSquaredDistance(pos, treatAsBlockPos);
+    public double distSqr(Position pos, boolean treatAsBlockPos) {
+        return delegate.get().distSqr(pos, treatAsBlockPos);
     }
 
     @Override
-    public double getSquaredDistance(Vec3i vec, boolean treatAsBlockPos) {
-        return delegate.get().getSquaredDistance(vec, treatAsBlockPos);
+    public double distSqr(Vec3i vec, boolean treatAsBlockPos) {
+        return delegate.get().distSqr(vec, treatAsBlockPos);
     }
 
     @Override
-    public double getSquaredDistance(double x, double y, double z, boolean treatAsBlockPos) {
-        return delegate.get().getSquaredDistance(x, y, z, treatAsBlockPos);
+    public double distSqr(double x, double y, double z, boolean treatAsBlockPos) {
+        return delegate.get().distSqr(x, y, z, treatAsBlockPos);
     }
 
     @Override
-    public int getManhattanDistance(Vec3i vec) {
-        return delegate.get().getManhattanDistance(vec);
+    public int distManhattan(Vec3i vec) {
+        return delegate.get().distManhattan(vec);
     }
 
     @Override
-    public int getComponentAlongAxis(Direction.Axis axis) {
-        return delegate.get().getComponentAlongAxis(axis);
+    public int get(Direction.Axis axis) {
+        return delegate.get().get(axis);
     }
 
     @Override

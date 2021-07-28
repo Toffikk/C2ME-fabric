@@ -3,14 +3,13 @@ package com.ishland.c2me.common.threading.worldgen;
 import com.ibm.asyncutil.locks.AsyncNamedLock;
 import com.ishland.c2me.common.config.C2MEConfig;
 import com.ishland.c2me.common.util.AsyncCombinedLock;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.chunk.ChunkStatus;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.ChunkStatus;
 
 import static com.ishland.c2me.common.threading.worldgen.ChunkStatusThreadingType.AS_IS;
 import static com.ishland.c2me.common.threading.worldgen.ChunkStatusThreadingType.PARALLELIZED;

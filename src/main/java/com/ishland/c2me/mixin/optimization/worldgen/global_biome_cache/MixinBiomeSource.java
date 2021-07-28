@@ -1,8 +1,8 @@
 package com.ishland.c2me.mixin.optimization.worldgen.global_biome_cache;
 
 import com.ishland.c2me.common.optimization.worldgen.global_biome_cache.IGlobalBiomeCache;
-import net.minecraft.world.biome.Biome;
-import net.minecraft.world.biome.source.BiomeSource;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeSource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -15,7 +15,7 @@ public class MixinBiomeSource {
         if (biomeSource instanceof IGlobalBiomeCache globalBiomeCache) {
             return globalBiomeCache.getBiomeForNoiseGenFast(biomeX, biomeY, biomeZ);
         }
-        return biomeSource.getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
+        return biomeSource.getNoiseBiome(biomeX, biomeY, biomeZ);
     }
 
 }

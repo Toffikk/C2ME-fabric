@@ -3,42 +3,41 @@ package com.ishland.c2me.tests.worlddiff;
 import com.google.common.collect.ImmutableSet;
 import com.ibm.asyncutil.locks.AsyncSemaphore;
 import com.ibm.asyncutil.locks.FairAsyncSemaphore;
-import com.ishland.c2me.tests.worlddiff.mixin.IStorageIoWorker;
-import com.ishland.c2me.tests.worlddiff.mixin.IWorldUpdater;
-import net.minecraft.block.BlockState;
-import net.minecraft.datafixer.Schemas;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
+import com.ishland.c2me.tests.worlddiff.mixin.IIOWorker;
+import com.ishland.c2me.tests.worlddiff.mixin.IWorldUpgrader;
+import net.minecraft.Util;
+import net.minecraft.commands.Commands;
+import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.SectionPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.resource.DataPackSettings;
-import net.minecraft.resource.FileResourcePackProvider;
-import net.minecraft.resource.ResourcePackManager;
-import net.minecraft.resource.ResourcePackSource;
-import net.minecraft.resource.ResourceType;
-import net.minecraft.resource.ServerResourceManager;
-import net.minecraft.resource.VanillaDataPackProvider;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.RegistryReadOps;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.state.property.Property;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Util;
-import net.minecraft.util.WorldSavePath;
-import net.minecraft.util.dynamic.RegistryOps;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.ChunkSectionPos;
-import net.minecraft.util.registry.DynamicRegistryManager;
-import net.minecraft.util.registry.Registry;
-import net.minecraft.util.registry.RegistryKey;
-import net.minecraft.world.ChunkSerializer;
-import net.minecraft.world.SaveProperties;
-import net.minecraft.world.World;
-import net.minecraft.world.chunk.ChunkSection;
-import net.minecraft.world.chunk.ChunkStatus;
-import net.minecraft.world.level.storage.LevelStorage;
-import net.minecraft.world.storage.StorageIoWorker;
-import net.minecraft.world.updater.WorldUpdater;
-
+import net.minecraft.server.ServerResources;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.repository.FolderRepositorySource;
+import net.minecraft.server.packs.repository.PackRepository;
+import net.minecraft.server.packs.repository.PackSource;
+import net.minecraft.server.packs.repository.ServerPacksSource;
+import net.minecraft.util.datafix.DataFixers;
+import net.minecraft.util.worldupdate.WorldUpgrader;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.DataPackConfig;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.world.level.chunk.ChunkStatus;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.storage.ChunkSerializer;
+import net.minecraft.world.level.chunk.storage.IOWorker;
+import net.minecraft.world.level.storage.LevelResource;
+import net.minecraft.world.level.storage.LevelStorageSource;
+import net.minecraft.world.level.storage.WorldData;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -69,30 +68,30 @@ public class ComparisonSession implements Closeable {
     public void compareChunks() {
         System.out.println("Starting comparison of chunks");
         AsyncSemaphore working = new FairAsyncSemaphore(Runtime.getRuntime().availableProcessors() * 4);
-        final HashSet<RegistryKey<World>> worlds = new HashSet<>(baseWorld.chunkPosesMap.keySet());
+        final HashSet<ResourceKey<Level>> worlds = new HashSet<>(baseWorld.chunkPosesMap.keySet());
         worlds.retainAll(targetWorld.chunkPosesMap.keySet());
-        for (RegistryKey<World> world : worlds) {
+        for (ResourceKey<Level> world : worlds) {
             System.out.printf("Filtering chunks in world %s\n", world);
             final HashSet<ChunkPos> chunks = new HashSet<>(baseWorld.chunkPosesMap.get(world));
             chunks.retainAll(targetWorld.chunkPosesMap.get(world));
             final int totalChunks = chunks.size();
-            final StorageIoWorker regionBaseIo = baseWorld.regionIoWorkers.get(world);
-            final StorageIoWorker regionTargetIo = targetWorld.regionIoWorkers.get(world);
+            final IOWorker regionBaseIo = baseWorld.regionIoWorkers.get(world);
+            final IOWorker regionTargetIo = targetWorld.regionIoWorkers.get(world);
             AtomicLong completedChunks = new AtomicLong();
             AtomicLong completedBlocks = new AtomicLong();
             AtomicLong differenceBlocks = new AtomicLong();
-            ConcurrentHashMap<Identifier, AtomicLong> blockDifference = new ConcurrentHashMap<>();
+            ConcurrentHashMap<ResourceLocation, AtomicLong> blockDifference = new ConcurrentHashMap<>();
             final CompletableFuture<Void> future = CompletableFuture.allOf(chunks.stream().map(pos -> working.acquire().toCompletableFuture().thenCompose(unused ->
-                    ((IStorageIoWorker) regionBaseIo).invokeReadChunkData(pos)
-                            .thenCombineAsync(((IStorageIoWorker) regionTargetIo).invokeReadChunkData(pos), (chunkDataBase, chunkDataTarget) -> {
+                    ((IIOWorker) regionBaseIo).invokeLoadAsync(pos)
+                            .thenCombineAsync(((IIOWorker) regionTargetIo).invokeLoadAsync(pos), (chunkDataBase, chunkDataTarget) -> {
                                 try {
-                                    if (ChunkSerializer.getChunkType(chunkDataBase) == ChunkStatus.ChunkType.PROTOCHUNK
-                                            || ChunkSerializer.getChunkType(chunkDataBase) == ChunkStatus.ChunkType.PROTOCHUNK)
+                                    if (ChunkSerializer.getChunkTypeFromTag(chunkDataBase) == ChunkStatus.ChunkType.PROTOCHUNK
+                                            || ChunkSerializer.getChunkTypeFromTag(chunkDataBase) == ChunkStatus.ChunkType.PROTOCHUNK)
                                         return null;
-                                    final Map<ChunkSectionPos, ChunkSection> sectionsBase = readSections(pos, chunkDataBase);
-                                    final Map<ChunkSectionPos, ChunkSection> sectionsTarget = readSections(pos, chunkDataTarget);
+                                    final Map<SectionPos, LevelChunkSection> sectionsBase = readSections(pos, chunkDataBase);
+                                    final Map<SectionPos, LevelChunkSection> sectionsTarget = readSections(pos, chunkDataTarget);
                                     sectionsBase.forEach((chunkSectionPos, chunkSectionBase) -> {
-                                        final ChunkSection chunkSectionTarget = sectionsTarget.get(chunkSectionPos);
+                                        final LevelChunkSection chunkSectionTarget = sectionsTarget.get(chunkSectionPos);
                                         if (chunkSectionBase == null || chunkSectionTarget == null) {
                                             completedBlocks.addAndGet(16 * 16 * 16);
                                             differenceBlocks.addAndGet(16 * 16 * 16);
@@ -105,9 +104,9 @@ public class ComparisonSession implements Closeable {
                                                     final BlockState state2 = chunkSectionTarget.getBlockState(x, y, z);
                                                     if (!blockStateEquals(state1, state2)) {
                                                         differenceBlocks.incrementAndGet();
-                                                        if (!Registry.BLOCK.getId(state1.getBlock()).equals(Registry.BLOCK.getId(state2.getBlock()))) {
-                                                            blockDifference.computeIfAbsent(Registry.BLOCK.getId(state1.getBlock()), unused1 -> new AtomicLong()).incrementAndGet();
-                                                            blockDifference.computeIfAbsent(Registry.BLOCK.getId(state2.getBlock()), unused1 -> new AtomicLong()).incrementAndGet();
+                                                        if (!Registry.BLOCK.getKey(state1.getBlock()).equals(Registry.BLOCK.getKey(state2.getBlock()))) {
+                                                            blockDifference.computeIfAbsent(Registry.BLOCK.getKey(state1.getBlock()), unused1 -> new AtomicLong()).incrementAndGet();
+                                                            blockDifference.computeIfAbsent(Registry.BLOCK.getKey(state2.getBlock()), unused1 -> new AtomicLong()).incrementAndGet();
                                                         }
                                                     }
                                                     completedBlocks.incrementAndGet();
@@ -147,73 +146,73 @@ public class ComparisonSession implements Closeable {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static boolean blockStateEquals(BlockState state1, BlockState state2) {
-        if (!Registry.BLOCK.getId(state1.getBlock()).equals(Registry.BLOCK.getId(state2.getBlock()))) return false;
+        if (!Registry.BLOCK.getKey(state1.getBlock()).equals(Registry.BLOCK.getKey(state2.getBlock()))) return false;
         for (Property property : state1.getProperties()) {
-            if (state1.get(property).compareTo(state2.get(property)) != 0) return false;
+            if (state1.getValue(property).compareTo(state2.getValue(property)) != 0) return false;
         }
         return true;
     }
 
-    private static Map<ChunkSectionPos, ChunkSection> readSections(ChunkPos pos, NbtCompound chunkData) {
-        NbtList nbtList = chunkData.getCompound("Level").getList("Sections", 10);
-        HashMap<ChunkSectionPos, ChunkSection> result = new HashMap<>();
+    private static Map<SectionPos, LevelChunkSection> readSections(ChunkPos pos, CompoundTag chunkData) {
+        ListTag nbtList = chunkData.getCompound("Level").getList("Sections", 10);
+        HashMap<SectionPos, LevelChunkSection> result = new HashMap<>();
         for (int i = 0; i < nbtList.size(); i++) {
-            final NbtCompound sectionData = nbtList.getCompound(i);
+            final CompoundTag sectionData = nbtList.getCompound(i);
             int y = sectionData.getByte("Y");
             if (sectionData.contains("Palette", 9) && sectionData.contains("BlockStates", 12)) {
-                final ChunkSection chunkSection = new ChunkSection(y);
-                chunkSection.getContainer().read(sectionData.getList("Palette", 10), sectionData.getLongArray("BlockStates"));
-                chunkSection.calculateCounts();
-                result.put(ChunkSectionPos.from(pos, y), chunkSection);
+                final LevelChunkSection chunkSection = new LevelChunkSection(y);
+                chunkSection.getStates().read(sectionData.getList("Palette", 10), sectionData.getLongArray("BlockStates"));
+                chunkSection.recalcBlockCounts();
+                result.put(SectionPos.of(pos, y), chunkSection);
             }
         }
         return result;
     }
 
     private static WorldHandle getWorldHandle(File worldFolder, String description) throws IOException {
-        final LevelStorage levelStorage = LevelStorage.create(worldFolder.toPath());
-        final LevelStorage.Session session = levelStorage.createSession(worldFolder.getAbsolutePath());
+        final LevelStorageSource levelStorage = LevelStorageSource.createDefault(worldFolder.toPath());
+        final LevelStorageSource.LevelStorageAccess session = levelStorage.createAccess(worldFolder.getAbsolutePath());
 
         System.out.printf("Reading world data for %s\n", description);
-        DynamicRegistryManager.Impl impl = DynamicRegistryManager.create();
-        DataPackSettings dataPackSettings = session.getDataPackSettings();
-        ResourcePackManager resourcePackManager = new ResourcePackManager(ResourceType.SERVER_DATA, new VanillaDataPackProvider(), new FileResourcePackProvider(session.getDirectory(WorldSavePath.DATAPACKS).toFile(), ResourcePackSource.PACK_SOURCE_WORLD));
-        DataPackSettings dataPackSettings2 = MinecraftServer.loadDataPacks(resourcePackManager, dataPackSettings == null ? DataPackSettings.SAFE_MODE : dataPackSettings, false);
-        ServerResourceManager serverResourceManager2;
+        RegistryAccess.RegistryHolder impl = RegistryAccess.builtin();
+        DataPackConfig dataPackSettings = session.getDataPacks();
+        PackRepository resourcePackManager = new PackRepository(PackType.SERVER_DATA, new ServerPacksSource(), new FolderRepositorySource(session.getLevelPath(LevelResource.DATAPACK_DIR).toFile(), PackSource.WORLD));
+        DataPackConfig dataPackSettings2 = MinecraftServer.configurePackRepository(resourcePackManager, dataPackSettings == null ? DataPackConfig.DEFAULT : dataPackSettings, false);
+        ServerResources serverResourceManager2;
         try {
-            serverResourceManager2 = ServerResourceManager.reload(resourcePackManager.createResourcePacks(), impl, CommandManager.RegistrationEnvironment.DEDICATED, 2, Util.getMainWorkerExecutor(), Runnable::run).get();
+            serverResourceManager2 = ServerResources.loadResources(resourcePackManager.openAllSelected(), impl, Commands.CommandSelection.DEDICATED, 2, Util.backgroundExecutor(), Runnable::run).get();
         } catch (Throwable t) {
             resourcePackManager.close();
             throw new RuntimeException("Cannot load data packs", t);
         }
-        final RegistryOps<NbtElement> dynamicOps = RegistryOps.method_36574(NbtOps.INSTANCE, serverResourceManager2.getResourceManager(), impl);
-        SaveProperties saveProperties = session.readLevelProperties(dynamicOps, dataPackSettings2);
+        final RegistryReadOps<Tag> dynamicOps = RegistryReadOps.createAndLoad(NbtOps.INSTANCE, serverResourceManager2.getResourceManager(), impl);
+        WorldData saveProperties = session.getDataTag(dynamicOps, dataPackSettings2);
         if (saveProperties == null) {
             resourcePackManager.close();
             throw new FileNotFoundException();
         }
-        final ImmutableSet<RegistryKey<World>> worldKeys = saveProperties.getGeneratorOptions().getWorlds();
-        final WorldUpdater worldUpdater = new WorldUpdater(session, Schemas.getFixer(), worldKeys, false);
-        final HashMap<RegistryKey<World>, List<ChunkPos>> chunkPosesMap = new HashMap<>();
-        for (RegistryKey<World> world : worldKeys) {
+        final ImmutableSet<ResourceKey<Level>> worldKeys = saveProperties.worldGenSettings().levels();
+        final WorldUpgrader worldUpgrader = new WorldUpgrader(session, DataFixers.getDataFixer(), worldKeys, false);
+        final HashMap<ResourceKey<Level>, List<ChunkPos>> chunkPosesMap = new HashMap<>();
+        for (ResourceKey<Level> world : worldKeys) {
             System.out.printf("%s: Counting chunks for world %s\n", description, world);
             //noinspection ConstantConditions
-            chunkPosesMap.put(world, ((IWorldUpdater) worldUpdater).invokeGetChunkPositions(world));
+            chunkPosesMap.put(world, ((IWorldUpgrader) worldUpgrader).invokeGetAllChunkPos(world));
         }
-        final HashMap<RegistryKey<World>, StorageIoWorker> regionIoWorkers = new HashMap<>();
-        final HashMap<RegistryKey<World>, StorageIoWorker> poiIoWorkers = new HashMap<>();
-        for (RegistryKey<World> world : worldKeys) {
-            regionIoWorkers.put(world, new StorageIoWorker(new File(session.getWorldDirectory(world), "region"), true, "chunk") {
+        final HashMap<ResourceKey<Level>, IOWorker> regionIoWorkers = new HashMap<>();
+        final HashMap<ResourceKey<Level>, IOWorker> poiIoWorkers = new HashMap<>();
+        for (ResourceKey<Level> world : worldKeys) {
+            regionIoWorkers.put(world, new IOWorker(new File(session.getDimensionPath(world), "region"), true, "chunk") {
             });
-            poiIoWorkers.put(world, new StorageIoWorker(new File(session.getWorldDirectory(world), "poi"), true, "poi") {
+            poiIoWorkers.put(world, new IOWorker(new File(session.getDimensionPath(world), "poi"), true, "poi") {
             });
         }
         return new WorldHandle(chunkPosesMap, regionIoWorkers, poiIoWorkers, () -> {
             System.out.println("Shutting down IOWorkers...");
-            Stream.concat(regionIoWorkers.values().stream(), poiIoWorkers.values().stream()).forEach(storageIoWorker -> {
-                storageIoWorker.completeAll(true).join();
+            Stream.concat(regionIoWorkers.values().stream(), poiIoWorkers.values().stream()).forEach(ioWorker -> {
+                ioWorker.synchronize(true).join();
                 try {
-                    storageIoWorker.close();
+                    ioWorker.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -225,9 +224,9 @@ public class ComparisonSession implements Closeable {
         });
     }
 
-    public record WorldHandle(HashMap<RegistryKey<World>, List<ChunkPos>> chunkPosesMap,
-                              HashMap<RegistryKey<World>, StorageIoWorker> regionIoWorkers,
-                              HashMap<RegistryKey<World>, StorageIoWorker> poiIoWorkers,
+    public record WorldHandle(HashMap<ResourceKey<Level>, List<ChunkPos>> chunkPosesMap,
+                              HashMap<ResourceKey<Level>, IOWorker> regionIoWorkers,
+                              HashMap<ResourceKey<Level>, IOWorker> poiIoWorkers,
                               Closeable handle) {
     }
 

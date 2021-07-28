@@ -1,30 +1,30 @@
 package com.ishland.c2me.asm.targets;
 
-import net.minecraft.structure.MineshaftGenerator;
-import net.minecraft.structure.NetherFortressGenerator;
-import net.minecraft.structure.OceanMonumentGenerator;
-import net.minecraft.structure.PoolStructurePiece;
-import net.minecraft.structure.StrongholdGenerator;
-import net.minecraft.structure.StructurePieceWithDimensions;
-import net.minecraft.structure.SwampHutGenerator;
-import net.minecraft.structure.WoodlandMansionGenerator;
+import net.minecraft.world.level.levelgen.structure.MineShaftPieces;
+import net.minecraft.world.level.levelgen.structure.NetherBridgePieces;
+import net.minecraft.world.level.levelgen.structure.OceanMonumentPieces;
+import net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece;
+import net.minecraft.world.level.levelgen.structure.ScatteredFeaturePiece;
+import net.minecraft.world.level.levelgen.structure.StrongholdPieces;
+import net.minecraft.world.level.levelgen.structure.SwamplandHutPiece;
+import net.minecraft.world.level.levelgen.structure.WoodlandMansionPieces;
 import org.spongepowered.asm.mixin.Mixin;
 
 @Mixin({
-        MineshaftGenerator.MineshaftCorridor.class,
-        NetherFortressGenerator.BridgePlatform.class,
-        NetherFortressGenerator.CorridorLeftTurn.class,
-        NetherFortressGenerator.CorridorRightTurn.class,
-        NetherFortressGenerator.Start.class,
-        OceanMonumentGenerator.PieceSetting.class,
-        OceanMonumentGenerator.Base.class,
-        PoolStructurePiece.class,
-        StrongholdGenerator.ChestCorridor.class,
-        StrongholdGenerator.PortalRoom.class,
-        StrongholdGenerator.Start.class,
-        StructurePieceWithDimensions.class,
-        SwampHutGenerator.class,
-        WoodlandMansionGenerator.GenerationPiece.class
+        MineShaftPieces.MineShaftCorridor.class,
+        NetherBridgePieces.MonsterThrone.class,
+        NetherBridgePieces.CastleSmallCorridorLeftTurnPiece.class,
+        NetherBridgePieces.CastleSmallCorridorRightTurnPiece.class,
+        NetherBridgePieces.StartPiece.class,
+        OceanMonumentPieces.RoomDefinition.class,
+        OceanMonumentPieces.MonumentBuilding.class,
+        PoolElementStructurePiece.class,
+        StrongholdPieces.ChestCorridor.class,
+        StrongholdPieces.PortalRoom.class,
+        StrongholdPieces.StartPiece.class,
+        ScatteredFeaturePiece.class,
+        SwamplandHutPiece.class,
+        WoodlandMansionPieces.PlacementData.class
 })
 public class ASMMixinTargets {
 }

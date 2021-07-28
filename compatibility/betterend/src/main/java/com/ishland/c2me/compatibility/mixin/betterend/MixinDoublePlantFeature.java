@@ -1,6 +1,6 @@
 package com.ishland.c2me.compatibility.mixin.betterend;
 
-import net.minecraft.block.Block;
+import net.minecraft.world.level.block.Block;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Mixin;

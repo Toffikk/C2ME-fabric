@@ -1,11 +1,6 @@
 package com.ishland.c2me.mixin.threading.worldgen.fixes.threading_issues;
 
 import com.ishland.c2me.common.threading.worldgen.ThreadLocalChunkRandom;
-import net.minecraft.structure.StructureStart;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.gen.ChunkRandom;
-import net.minecraft.world.gen.feature.FeatureConfig;
-import net.minecraft.world.gen.feature.StructureFeature;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Final;
@@ -19,21 +14,26 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.levelgen.WorldgenRandom;
+import net.minecraft.world.level.levelgen.feature.StructureFeature;
+import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
+import net.minecraft.world.level.levelgen.structure.StructureStart;
 
 @Mixin(StructureStart.class)
-public class MixinStructureStart<C extends FeatureConfig> {
+public class MixinStructureStart<C extends FeatureConfiguration> {
 
     @Mutable
     @Shadow
     @Final
-    protected ChunkRandom random;
+    protected WorldgenRandom random;
 
     private final AtomicInteger referencesAtomic = new AtomicInteger();
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void postInit(StructureFeature<C> feature, ChunkPos pos, int references, long seed, CallbackInfo ci) {
         this.random = new ThreadLocalChunkRandom(seed,
-                chunkRandom -> chunkRandom.setCarverSeed(seed, pos.x, pos.z) // TODO [VanillaCopy]
+                chunkRandom -> chunkRandom.setLargeFeatureSeed(seed, pos.x, pos.z) // TODO [VanillaCopy]
         );
     }
 

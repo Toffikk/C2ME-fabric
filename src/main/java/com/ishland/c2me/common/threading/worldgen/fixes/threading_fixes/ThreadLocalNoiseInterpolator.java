@@ -1,49 +1,49 @@
 package com.ishland.c2me.common.threading.worldgen.fixes.threading_fixes;
 
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.gen.NoiseInterpolator;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.levelgen.NoiseInterpolator;
 
 public class ThreadLocalNoiseInterpolator extends NoiseInterpolator {
 
     private final ThreadLocal<NoiseInterpolator> noiseInterpolatorThreadLocal;
 
-    public ThreadLocalNoiseInterpolator(int sizeX, int sizeY, int sizeZ, ChunkPos pos, int minY, ColumnSampler columnSampler) {
+    public ThreadLocalNoiseInterpolator(int sizeX, int sizeY, int sizeZ, ChunkPos pos, int minY, NoiseColumnFiller columnSampler) {
         super(sizeX, sizeY, sizeZ, pos, minY, columnSampler);
         this.noiseInterpolatorThreadLocal = ThreadLocal.withInitial(() -> new NoiseInterpolator(sizeX, sizeY, sizeZ, pos, minY, columnSampler));
     }
 
     @Override
-    public void sampleStartNoise() {
-        this.noiseInterpolatorThreadLocal.get().sampleStartNoise();
+    public void initializeForFirstCellX() {
+        this.noiseInterpolatorThreadLocal.get().initializeForFirstCellX();
     }
 
     @Override
-    public void sampleEndNoise(int x) {
-        this.noiseInterpolatorThreadLocal.get().sampleEndNoise(x);
+    public void advanceCellX(int x) {
+        this.noiseInterpolatorThreadLocal.get().advanceCellX(x);
     }
 
     @Override
-    public void sampleNoiseCorners(int noiseY, int noiseZ) {
-        this.noiseInterpolatorThreadLocal.get().sampleNoiseCorners(noiseY, noiseZ);
+    public void selectCellYZ(int noiseY, int noiseZ) {
+        this.noiseInterpolatorThreadLocal.get().selectCellYZ(noiseY, noiseZ);
     }
 
     @Override
-    public void sampleNoiseY(double deltaY) {
-        this.noiseInterpolatorThreadLocal.get().sampleNoiseY(deltaY);
+    public void updateForY(double deltaY) {
+        this.noiseInterpolatorThreadLocal.get().updateForY(deltaY);
     }
 
     @Override
-    public void sampleNoiseX(double deltaX) {
-        this.noiseInterpolatorThreadLocal.get().sampleNoiseX(deltaX);
+    public void updateForX(double deltaX) {
+        this.noiseInterpolatorThreadLocal.get().updateForX(deltaX);
     }
 
     @Override
-    public double sampleNoise(double deltaZ) {
-        return this.noiseInterpolatorThreadLocal.get().sampleNoise(deltaZ);
+    public double calculateValue(double deltaZ) {
+        return this.noiseInterpolatorThreadLocal.get().calculateValue(deltaZ);
     }
 
     @Override
-    public void swapBuffers() {
-        this.noiseInterpolatorThreadLocal.get().swapBuffers();
+    public void swapSlices() {
+        this.noiseInterpolatorThreadLocal.get().swapSlices();
     }
 }

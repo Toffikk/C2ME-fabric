@@ -1,6 +1,5 @@
 package com.ishland.c2me.tests.testmod.mixin;
 
-import net.minecraft.util.crash.CrashReport;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -10,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.io.File;
+import net.minecraft.CrashReport;
 
 @Mixin(CrashReport.class)
 public abstract class MixinCrashReport {
